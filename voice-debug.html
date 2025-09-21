@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Debug Test</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            padding: 2rem; 
+            text-align: center;
+        }
+        button { 
+            padding: 1rem 2rem; 
+            font-size: 1.2rem; 
+            margin: 0.5rem; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #debug { 
+            margin: 1rem; 
+            padding: 1rem; 
+            background: #f8f9fa; 
+            border-radius: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Voice Debug Test</h1>
+    
+    <button onclick="testBasicVoice()">Test Basic Voice</button>
+    <button onclick="testVoiceInfo()">Check Voice Support</button>
+    <button onclick="listVoices()">List Available Voices</button>
+    <button onclick="testVolume()">Test with Max Volume</button>
+    
+    <div id="debug"></div>
+
+    <script>
+        const debug = document.getElementById('debug');
+        
+        function log(message) {
+            debug.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+        
+        function testBasicVoice() {
+            log('🧪 Testing basic voice...');
+            
+            if (!window.speechSynthesis) {
+                log('❌ speechSynthesis not available');
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance('Hello, this is a voice test.');
+            utterance.volume = 1.0; // Maximum volume
+            utterance.rate = 0.8;
+            utterance.pitch = 1.0;
+            
+            utterance.onstart = () => log('✅ Speech started');
+            utterance.onend = () => log('✅ Speech ended');
+            utterance.onerror = (e) => log('❌ Speech error: ' + e.error);
+            
+            speechSynthesis.speak(utterance);
+            log('📤 Speech command sent');
+        }
+        
+        function testVoiceInfo() {
+            log('🔍 Checking voice support...');
+            log('speechSynthesis available: ' + !!window.speechSynthesis);
+            log('User agent: ' + navigator.userAgent);
+            
+            if (window.speechSynthesis) {
+                log('Speaking: ' + speechSynthesis.speaking);
+                log('Pending: ' + speechSynthesis.pending);
+                log('Paused: ' + speechSynthesis.paused);
+            }
+        }
+        
+        function listVoices() {
+            log('🎤 Listing available voices...');
+            
+            if (!window.speechSynthesis) {
+                log('❌ No speech synthesis');
+                return;
+            }
+            
+            const voices = speechSynthesis.getVoices();
+            log('Found ' + voices.length + ' voices:');
+            
+            voices.forEach((voice, index) => {
+                log(`${index}: ${voice.name} (${voice.lang}) - ${voice.gender || 'unknown gender'}`);
+            });
+            
+            if (voices.length === 0) {
+                log('⚠️ No voices found. Trying to reload...');
+                setTimeout(() => {
+                    speechSynthesis.getVoices();
+                    listVoices();
+                }, 100);
+            }
+        }
+        
+        function testVolume() {
+            log('🔊 Testing with maximum volume...');
+            
+            const utterance = new SpeechSynthesisUtterance('This is a maximum volume test. Can you hear this?');
+            utterance.volume = 1.0;
+            utterance.rate = 0.7;
+            utterance.pitch = 1.2;
+            
+            utterance.onstart = () => log('✅ Max volume test started');
+            utterance.onend = () => log('✅ Max volume test ended');
+            utterance.onerror = (e) => log('❌ Max volume test error: ' + e.error);
+            
+            speechSynthesis.speak(utterance);
+        }
+        
+        // Auto-run voice info check
+        window.addEventListener('load', () => {
+            setTimeout(testVoiceInfo, 500);
+            setTimeout(listVoices, 1000);
+        });
+    </script>
+</body>
+</html>
