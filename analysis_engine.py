@@ -102,41 +102,114 @@ bq_client = bigquery.Client(project=PROJECT_ID)
 DATASET_ID = "factchecks"
 TABLE_ID = "fact_checks"
 
+def extract_key_terms(text):
+    """Extract key terms from text for better evidence matching"""
+    # Common stop words to ignore
+    stop_words = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'a', 'an', 'that', 'this', 'it', 'they', 'them', 'their', 'there', 'then', 'than', 'when', 'where', 'why', 'how', 'what', 'which', 'who', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'must', 'have', 'has', 'had', 'do', 'does', 'did', 'get', 'got', 'go', 'goes', 'went'}
+    
+    # Split into words and clean
+    words = text.lower().replace('.', '').replace(',', '').replace('!', '').replace('?', '').split()
+    
+    # Filter out stop words and short words, prioritize important terms
+    key_terms = []
+    for word in words:
+        if len(word) > 3 and word not in stop_words:
+            key_terms.append(word)
+    
+    # Prioritize certain categories of terms
+    priority_terms = []
+    regular_terms = []
+    
+    for term in key_terms:
+        # High priority terms
+        if any(keyword in term for keyword in ['covid', 'vaccine', 'virus', 'disease', 'cancer', 'treatment', 'cure', 'medicine', 'doctor', 'health', 'climate', 'global', 'warming', 'election', 'government', 'president', 'minister', 'policy', 'economy', 'market', 'stock', 'crypto', 'bitcoin']):
+            priority_terms.append(term)
+        else:
+            regular_terms.append(term)
+    
+    # Return priority terms first, then regular terms
+    return priority_terms + regular_terms
+
+def filter_relevant_evidence(query_text, evidence_results):
+    """Filter evidence results to only show relevant matches"""
+    if not evidence_results:
+        return []
+    
+    query_terms = set(extract_key_terms(query_text))
+    relevant_results = []
+    
+    for evidence in evidence_results:
+        # Extract the claim part from the evidence string
+        claim_part = evidence.split(' — ')[0] if ' — ' in evidence else evidence
+        evidence_terms = set(extract_key_terms(claim_part))
+        
+        # Calculate relevance based on term overlap
+        overlap = len(query_terms.intersection(evidence_terms))
+        relevance_score = overlap / max(len(query_terms), 1) if query_terms else 0
+        
+        # Only include if relevance score is above threshold
+        if relevance_score >= 0.3:  # At least 30% term overlap
+            relevant_results.append(evidence)
+    
+    return relevant_results
+
 def credibility_checker(text, top_k=3):
-    """Check credibility using BigQuery first, fall back to SQLite database"""
+    """Check credibility using improved search with relevance filtering"""
     if not text or not text.strip():
         return []
     
-    # First try BigQuery (cloud database)
+    # Extract key terms for better matching
+    key_terms = extract_key_terms(text)
+    
+    # First try BigQuery (cloud database) with smarter search
     try:
-        token = text.split()[0].lower().replace("'", "").replace('"', '')
-        query = f"""
-        SELECT claim, verdict, source, url
-        FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`
-        WHERE LOWER(claim) LIKE @token
-        LIMIT @limit
-        """
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("token", "STRING", f"%{token}%"),
-                bigquery.ScalarQueryParameter("limit", "INT64", top_k),
-            ]
-        )
-        rows = bq_client.query(query, job_config=job_config).result()
-        results = [f"{r.claim} — {r.verdict} ({r.source}) {r.url}" for r in rows]
-        if results:  # If BigQuery returns results, use them
-            print(f"✅ Found {len(results)} results from BigQuery")
-            return results
+        # Use multiple key terms instead of just first word
+        search_conditions = []
+        params = []
+        
+        for i, term in enumerate(key_terms[:3]):  # Use top 3 key terms
+            search_conditions.append(f"LOWER(claim) LIKE @term{i}")
+            params.append(bigquery.ScalarQueryParameter(f"term{i}", "STRING", f"%{term.lower()}%"))
+        
+        if search_conditions:
+            query = f"""
+            SELECT claim, verdict, source, url, 
+                   CASE 
+                       WHEN {' AND '.join(search_conditions)} THEN 100
+                       WHEN {' OR '.join(search_conditions)} THEN 50
+                       ELSE 10
+                   END as relevance_score
+            FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`
+            WHERE {' OR '.join(search_conditions)}
+            ORDER BY relevance_score DESC
+            LIMIT @limit
+            """
+            params.append(bigquery.ScalarQueryParameter("limit", "INT64", top_k))
+            
+            job_config = bigquery.QueryJobConfig(query_parameters=params)
+            rows = bq_client.query(query, job_config=job_config).result()
+            results = [f"{r.claim} — {r.verdict} ({r.source}) {r.url}" for r in rows if r.relevance_score >= 50]
+            
+            if results:
+                print(f"✅ Found {len(results)} relevant results from BigQuery")
+                return results
     except Exception as e:
         print(f"BigQuery error: {e}. Falling back to local SQLite database.")
     
-    # Fallback to local SQLite database
+    # Fallback to local SQLite database with improved search
     try:
         from database_helper import search_fact_checks
         results = search_fact_checks(text, top_k)
+        
+        # Filter results for relevance
         if results:
-            print(f"✅ Found {len(results)} results from local database")
-            return results
+            relevant_results = filter_relevant_evidence(text, results)
+            if relevant_results:
+                print(f"✅ Found {len(relevant_results)} relevant results from local database")
+                return relevant_results
+            else:
+                print("ℹ️ No relevant matches found - showing generic guidance instead")
+                return []
         else:
             print("ℹ️ No matching fact-checks found in local database")
             return []
@@ -213,12 +286,26 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
     category = categorize_text(text)
     tip = personalized_tip(category)
 
+    # Prepare evidence display with better messaging
+    if evidence:
+        evidence_text = '; '.join(evidence)
+    else:
+        # Provide category-specific guidance when no direct evidence found
+        if category == "health":
+            evidence_text = "For health claims, consult WHO, CDC, FDA, or peer-reviewed medical journals for verified information."
+        elif category == "politics":
+            evidence_text = "For political claims, cross-reference with multiple reputable news sources and official government statements."
+        elif category == "finance":
+            evidence_text = "For financial claims, verify through official economic data and established financial institutions."
+        else:
+            evidence_text = "No specific fact-checks found in database. Verify through multiple credible sources and expert consensus."
+    
     # Prepare result
     result = {
         "classification": verdict,
         "score": score,
         "explanation": explanation,
-        "evidence": '; '.join(evidence) if evidence else "No direct evidence found.",
+        "evidence": evidence_text,
         "tips": all_tips,
         "gamification": {
             "points": new_points,
