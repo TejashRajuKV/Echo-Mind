@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo Mind Voice Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .test-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        .test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎤 Echo Mind Voice Test</h1>
+        <p>Test the voice welcome feature for your Echo Mind website.</p>
+        
+        <button class="test-btn" onclick="testWelcomeVoice()">
+            🔊 Test Welcome Voice
+        </button>
+        
+        <button class="test-btn" onclick="testCustomMessage()">
+            🎯 Test Custom Message
+        </button>
+        
+        <button class="test-btn" onclick="stopSpeech()">
+            ⏹️ Stop Speaking
+        </button>
+        
+        <div id="status" style="margin-top: 1rem; font-style: italic; color: #666;"></div>
+    </div>
+
+    <script>
+        function testWelcomeVoice() {
+            const message = "Welcome to Echo Mind. Your AI-powered fact checker by Thunderwing Falcons.";
+            speak(message);
+        }
+        
+        function testCustomMessage() {
+            const message = "Echo Mind combines the power of Google's Vertex AI with Gemini models to provide accurate, educational, and engaging fact-checking experiences.";
+            speak(message);
+        }
+        
+        function speak(text) {
+            if (!('speechSynthesis' in window)) {
+                document.getElementById('status').innerHTML = '❌ Speech Synthesis not supported in this browser';
+                return;
+            }
+            
+            // Stop any current speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
+            
+            // Try to get a nice voice
+            const voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                const preferredVoice = voices.find(voice => 
+                    voice.name.includes('Google') || 
+                    voice.name.includes('Microsoft') || 
+                    voice.gender === 'female'
+                ) || voices[0];
+                utterance.voice = preferredVoice;
+            }
+            
+            utterance.onstart = () => {
+                document.getElementById('status').innerHTML = '🎤 Speaking...';
+            };
+            
+            utterance.onend = () => {
+                document.getElementById('status').innerHTML = '✅ Speech completed';
+            };
+            
+            utterance.onerror = (event) => {
+                document.getElementById('status').innerHTML = '❌ Error: ' + event.error;
+            };
+            
+            speechSynthesis.speak(utterance);
+        }
+        
+        function stopSpeech() {
+            speechSynthesis.cancel();
+            document.getElementById('status').innerHTML = '⏹️ Speech stopped';
+        }
+        
+        // Load voices on page load
+        window.addEventListener('load', () => {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.getVoices();
+                document.getElementById('status').innerHTML = '✅ Voice system ready';
+            } else {
+                document.getElementById('status').innerHTML = '❌ Speech not supported';
+            }
+        });
+    </script>
+</body>
+</html>
