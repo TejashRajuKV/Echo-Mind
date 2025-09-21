@@ -212,7 +212,7 @@ def get_database_stats() -> Dict:
         return {'error': str(e)}
 
 def initialize_sample_data():
-    """Initialize database with some sample fact-check data"""
+    """Initialize database with some sample fact-check data including current political information"""
     sample_data = [
         {
             "claim": "COVID-19 vaccines contain microchips",
@@ -234,6 +234,27 @@ def initialize_sample_data():
             "source": "Mayo Clinic",
             "url": "https://www.mayoclinic.org/diseases-conditions/coronavirus/in-depth/coronavirus-myths/art-20485720",
             "explanation": "While vitamin C supports immune function, there's no evidence it prevents COVID-19 specifically."
+        },
+        {
+            "claim": "Jagan Mohan Reddy is the current CM of Andhra Pradesh",
+            "verdict": "False",
+            "source": "Election Commission of India",
+            "url": "https://eci.gov.in/",
+            "explanation": "As of June 2024, Chandrababu Naidu (TDP) is the Chief Minister of Andhra Pradesh. Jagan Mohan Reddy (YSRCP) lost the 2024 assembly elections."
+        },
+        {
+            "claim": "Chandrababu Naidu is the current CM of Andhra Pradesh",
+            "verdict": "Trustworthy",
+            "source": "The Hindu",
+            "url": "https://www.thehindu.com/news/national/andhra-pradesh/",
+            "explanation": "Chandrababu Naidu of Telugu Desam Party (TDP) became the Chief Minister of Andhra Pradesh in June 2024 after winning the assembly elections."
+        },
+        {
+            "claim": "TDP won Andhra Pradesh elections in 2024",
+            "verdict": "Trustworthy",
+            "source": "Election Commission of India",
+            "url": "https://eci.gov.in/",
+            "explanation": "The Telugu Desam Party (TDP) led by Chandrababu Naidu won the Andhra Pradesh assembly elections in 2024, defeating the incumbent YSRCP."
         }
     ]
     
