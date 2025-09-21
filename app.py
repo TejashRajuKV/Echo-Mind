@@ -129,5 +129,15 @@ def health_check():
     })
 
 if __name__ == '__main__':
+    # Initialize database with sample data if empty
+    try:
+        from database_helper import get_database_stats, initialize_sample_data
+        stats = get_database_stats()
+        if stats.get('total_claims', 0) == 0:
+            print("🔄 Initializing database with sample data...")
+            initialize_sample_data()
+    except Exception as e:
+        print(f"⚠️ Database initialization warning: {e}")
+    
     # Use port 8080 for compatibility with cloud environments
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)), debug=True)

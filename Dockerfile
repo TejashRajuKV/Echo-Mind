@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY analysis_engine.py .
 COPY database_helper.py .
-COPY factchecks.db .
 
 # Expose port
 EXPOSE 8080
