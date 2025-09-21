@@ -9,6 +9,22 @@ def get_database_connection():
     """Get a connection to the SQLite database"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # Enable column access by name
+    
+    # Create table if it doesn't exist
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS fact_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            claim TEXT NOT NULL,
+            verdict TEXT NOT NULL,
+            source TEXT NOT NULL,
+            url TEXT,
+            explanation TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    
     return conn
 
 def search_fact_checks(search_text: str, limit: int = 3) -> List[str]:
@@ -195,9 +211,56 @@ def get_database_stats() -> Dict:
         print(f"Error getting database stats: {e}")
         return {'error': str(e)}
 
+def initialize_sample_data():
+    """Initialize database with some sample fact-check data"""
+    sample_data = [
+        {
+            "claim": "COVID-19 vaccines contain microchips",
+            "verdict": "False",
+            "source": "WHO",
+            "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/mythbusters",
+            "explanation": "COVID-19 vaccines do not contain microchips. This is a completely false conspiracy theory."
+        },
+        {
+            "claim": "5G networks cause COVID-19",
+            "verdict": "False",
+            "source": "WHO",
+            "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/mythbusters",
+            "explanation": "Viruses cannot spread through mobile networks. COVID-19 is spread through respiratory droplets."
+        },
+        {
+            "claim": "Vitamin C prevents COVID-19",
+            "verdict": "Mixed",
+            "source": "Mayo Clinic",
+            "url": "https://www.mayoclinic.org/diseases-conditions/coronavirus/in-depth/coronavirus-myths/art-20485720",
+            "explanation": "While vitamin C supports immune function, there's no evidence it prevents COVID-19 specifically."
+        }
+    ]
+    
+    try:
+        for item in sample_data:
+            add_fact_check(
+                claim=item["claim"],
+                verdict=item["verdict"],
+                source=item["source"],
+                url=item["url"],
+                explanation=item["explanation"]
+            )
+        print("✅ Sample data initialized successfully")
+        return True
+    except Exception as e:
+        print(f"Error initializing sample data: {e}")
+        return False
+
 if __name__ == "__main__":
     # Test the database functions
     print("🧪 Testing database functions...")
+    
+    # Check if database has data, if not initialize with sample data
+    stats = get_database_stats()
+    if stats.get('total_claims', 0) == 0:
+        print("\n📝 Database is empty, initializing with sample data...")
+        initialize_sample_data()
     
     # Test search
     print("\n🔍 Testing search function:")

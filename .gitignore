@@ -1,0 +1,45 @@
+# Database files - keep private
+*.db
+factchecks.db
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Private admin tools
+Echo Mind Private/
+
+# Environment variables
+.env
+.env.local
+
+# Google Cloud credentials
+*.json
+credentials.json
+service-account.json
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Deployment scripts with sensitive info
+deploy_*.bat
+setup_*.bat
+
+# Virtual environment
+venv/
+env/
+
+# API keys and secrets (if stored in files)
+secrets.py
+config.py
