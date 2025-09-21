@@ -144,7 +144,7 @@ function initializeDemoFunctionality() {
                     <strong>Troubleshooting Steps:</strong>
                     <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
                         <li>Make sure the Flask server is running: <code>python app.py</code></li>
-                        <li>Check that the server is accessible at http://127.0.0.1:8080</li>
+                        <li>Check that the server is accessible at https://echo-mind-191043917366.us-central1.run.app</li>
                         <li>Verify your Google Cloud credentials are set up correctly</li>
                         <li>Check the browser console for additional error details</li>
                     </ol>
@@ -181,7 +181,7 @@ function initializeDemoFunctionality() {
         `;
         
         try {
-            const response = await fetch('http://127.0.0.1:8080/analyze', {
+            const response = await fetch('https://echo-mind-191043917366.us-central1.run.app/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
