@@ -17,7 +17,7 @@ from flask_cors import CORS
 PROJECT_ID = "echo-mind-472808"
 
 # API Key for authentication (you can change this to any secure key)
-API_KEY = os.environ.get('ECHO_MIND_API_KEY', 'thunderwing-falcons-2024-secure-key')
+API_KEY = os.environ.get('ECHO_MIND_API_KEY', 'gdo4N6BnLrvu9MOaH25Ml5M8msPjVf9tsez24Dq8eRI')
 
 # Rate limiting (simple in-memory counter)
 request_counts = {}

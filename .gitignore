@@ -43,3 +43,7 @@ env/
 # API keys and secrets (if stored in files)
 secrets.py
 config.py
+
+# Configuration files with API keys
+config-private.js
+private-config.js
