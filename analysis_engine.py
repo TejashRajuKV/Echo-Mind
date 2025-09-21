@@ -40,7 +40,7 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 print(f"✅ Vertex AI initialized for project: {PROJECT_ID}")
 
-GEMINI_MODEL = "gemini-1.5-pro" # Using stable and reliable model for consistent fact-checking
+GEMINI_MODEL = "gemini-2.0-flash" # Using auto-updated alias that points to latest stable version
 TRUSTED_DOMAINS = ["thehindu.com", "bbc.com", "nytimes.com", "indiatoday.in", "reuters.com"]
 
 def search_current_info(query, max_results=3):
