@@ -181,18 +181,11 @@ function initializeDemoFunctionality() {
         `;
         
         try {
-            // API key should be set through environment or config
-            const apiKey = window.ECHO_MIND_API_KEY || prompt('Enter API key for Echo Mind backend:');
-            
-            if (!apiKey) {
-                throw new Error('API key is required to access the fact-checking service.');
-            }
-            
             const response = await fetch('https://echo-mind-191043917366.us-central1.run.app/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': apiKey
+                    'X-API-Key': 'gdo4N6BnLrvu9MOaH25Ml5M8msPjVf9tsez24Dq8eRI'
                 },
                 body: JSON.stringify({ claim: claim }),
             });
