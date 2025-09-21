@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thunderwing Falcons - Echo Mind AI Fact Checker</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- Backup Font Awesome CDN -->
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.15.4/css/all.css" integrity="sha384-rqn26AG5Pj86AF4SO72RK5fyefcQ/x32DNQfChxWvbXIyXFePlEktwD18fEz+kQU" crossorigin="anonymous" onerror="this.onerror=null;this.href='https://use.fontawesome.com/releases/v5.15.4/css/all.css';">
+    <!-- Alternative if CDNs fail -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -13,7 +18,7 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
-                <img src="assets/logo.svg" alt="Thunderwing Falcons" style="height: 40px; margin-right: 10px;">
+                <img src="assets/logo.svg" alt="Thunderwing Falcons" class="nav-logo-img">
                 <span>Thunderwing Falcons</span>
             </div>
             <ul class="nav-menu">
@@ -21,6 +26,7 @@
                 <li><a href="#features">Features</a></li>
                 <li><a href="#demo">Demo</a></li>
                 <li><a href="#about">About</a></li>
+                <li><a href="#team">Team</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
             <div class="nav-toggle">
@@ -51,7 +57,7 @@
             </div>
             <div class="hero-visual">
                 <div class="falcon-icon">
-                    <img src="assets/logo.svg" alt="Echo Mind" style="width: 200px; height: 200px;">
+                    <img src="assets/logo.svg" alt="Echo Mind" class="hero-falcon-img">
                 </div>
             </div>
         </div>
@@ -167,7 +173,7 @@
                             <span class="tech-tag">Gemini 2.5 Pro</span>
                             <span class="tech-tag">BigQuery</span>
                             <span class="tech-tag">Python</span>
-                            <span class="tech-tag">Gradio</span>
+                            <span class="tech-tag">Flask</span>
                             <span class="tech-tag">Google Cloud</span>
                         </div>
                     </div>
@@ -182,6 +188,95 @@
                         <div class="stat-number">AI</div>
                         <div class="stat-label">Powered Analysis</div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="team">
+        <div class="container">
+            <h2 class="section-title">Meet Thunderwing Falcons</h2>
+            <p class="section-subtitle">The innovative minds behind Echo Mind AI Fact Checker</p>
+            
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-info">
+                        <h3>Tejash Raju K V</h3>
+                        <p class="team-role">Team Leader & Lead Developer</p>
+                        <p class="team-description">
+                            Visionary leader driving the Echo Mind project with expertise in AI integration, 
+                            system architecture, and team coordination. Passionate about combating misinformation 
+                            through innovative technology solutions.
+                        </p>
+                        <div class="team-contact">
+                            <a href="mailto:tejaskvraju@gmail.com" class="team-email">
+                                <i class="fas fa-envelope"></i>
+                                tejaskvraju@gmail.com
+                            </a>
+                        </div>
+                        <div class="team-skills">
+                            <span class="skill-tag">AI & ML</span>
+                            <span class="skill-tag">Project Leadership</span>
+                            <span class="skill-tag">Full-Stack Development</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="team-card">
+                    <div class="team-info">
+                        <h3>Amrutha V</h3>
+                        <p class="team-role">Frontend Developer & UX Designer</p>
+                        <p class="team-description">
+                            Creative designer and frontend specialist crafting intuitive user experiences. 
+                            Responsible for Echo Mind's responsive design, user interface, and ensuring 
+                            seamless interaction with the AI fact-checking system.
+                        </p>
+                        <div class="team-contact">
+                            <a href="mailto:amruthav182006@gmail.com" class="team-email">
+                                <i class="fas fa-envelope"></i>
+                                amruthav182006@gmail.com
+                            </a>
+                        </div>
+                        <div class="team-skills">
+                            <span class="skill-tag">UI/UX Design</span>
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">Responsive Design</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="team-card">
+                    <div class="team-info">
+                        <h3>Rakesh K</h3>
+                        <p class="team-role">Backend Developer & AI Specialist</p>
+                        <p class="team-description">
+                            Expert in backend systems and artificial intelligence, focusing on Vertex AI integration, 
+                            database optimization, and ensuring reliable, scalable fact-checking algorithms for Echo Mind.
+                        </p>
+                        <div class="team-contact">
+                            <a href="mailto:rakesh1917k@gmail.com" class="team-email">
+                                <i class="fas fa-envelope"></i>
+                                rakesh1917k@gmail.com
+                            </a>
+                        </div>
+                        <div class="team-skills">
+                            <span class="skill-tag">Python</span>
+                            <span class="skill-tag">Vertex AI</span>
+                            <span class="skill-tag">Database Systems</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="team-mission">
+                <div class="mission-card">
+                    <h3>Our Mission</h3>
+                    <p>
+                        As Thunderwing Falcons, we're committed to developing cutting-edge AI solutions that empower 
+                        users to navigate the complex information landscape. Echo Mind represents our dedication to 
+                        combining speed, precision, and educational value in the fight against misinformation.
+                    </p>
                 </div>
             </div>
         </div>
@@ -238,7 +333,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-logo">
-                    <img src="assets/logo.svg" alt="Thunderwing Falcons" style="height: 30px; margin-right: 10px;">
+                    <img src="assets/logo.svg" alt="Thunderwing Falcons" class="footer-logo-img">
                     <span>Thunderwing Falcons - Echo Mind</span>
                 </div>
                 <p>&copy; 2024 Thunderwing Falcons. Echo Mind - Suggesting intelligent responses and echoes of knowledge.</p>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Test - Echo Mind</title>
+    
+    <!-- Multiple Font Awesome CDN options -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .icon-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .icon-item i {
+            font-size: 2rem;
+            color: #007bff;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Icon Test for Echo Mind</h1>
+    <p>This page tests if Font Awesome icons are loading correctly on GitHub Pages.</p>
+    
+    <div class="test-section">
+        <h2>Feature Icons</h2>
+        <div class="icon-grid">
+            <div class="icon-item">
+                <i class="fas fa-robot"></i>
+                <div>Robot (AI)</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-brain"></i>
+                <div>Brain</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-shield-alt"></i>
+                <div>Shield</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-gamepad"></i>
+                <div>Gamepad</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-user-graduate"></i>
+                <div>Graduate</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <div>Speed</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>UI Icons</h2>
+        <div class="icon-grid">
+            <div class="icon-item">
+                <i class="fas fa-search"></i>
+                <div>Search</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-info-circle"></i>
+                <div>Info</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-envelope"></i>
+                <div>Email</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-lightbulb"></i>
+                <div>Lightbulb</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-cogs"></i>
+                <div>Settings</div>
+            </div>
+            <div class="icon-item">
+                <i class="fas fa-rocket"></i>
+                <div>Rocket</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Test if Font Awesome is loading
+        window.addEventListener('load', function() {
+            const results = document.getElementById('results');
+            
+            // Check if Font Awesome CSS is loaded
+            const fontAwesomeLoaded = Array.from(document.styleSheets).some(sheet => {
+                try {
+                    return sheet.href && (sheet.href.includes('font-awesome') || sheet.href.includes('fontawesome'));
+                } catch (e) {
+                    return false;
+                }
+            });
+            
+            // Check if icons are rendering (by checking computed styles)
+            const testIcon = document.querySelector('.fas.fa-robot');
+            const computedStyle = window.getComputedStyle(testIcon, '::before');
+            const hasContent = computedStyle.content && computedStyle.content !== 'none' && computedStyle.content !== '""';
+            
+            results.innerHTML = `
+                <p><strong>Font Awesome CSS Loaded:</strong> ${fontAwesomeLoaded ? '✅ Yes' : '❌ No'}</p>
+                <p><strong>Icons Rendering:</strong> ${hasContent ? '✅ Yes' : '❌ No'}</p>
+                <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+                <p><strong>Page URL:</strong> ${window.location.href}</p>
+            `;
+            
+            if (!fontAwesomeLoaded) {
+                results.innerHTML += '<p style="color: red;"><strong>Issue:</strong> Font Awesome CSS not loading. Check CDN links.</p>';
+            }
+            
+            if (!hasContent) {
+                results.innerHTML += '<p style="color: orange;"><strong>Note:</strong> Icons may not be rendering properly. Using emoji fallbacks.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

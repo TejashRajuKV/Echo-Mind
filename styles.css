@@ -5,6 +5,27 @@
     box-sizing: border-box;
 }
 
+/* Icon Fallbacks - Show Unicode symbols if Font Awesome fails to load */
+.fas, .fa {
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", sans-serif;
+    font-weight: 900;
+}
+
+/* Fallback symbols for common icons */
+.fa-robot::before { content: '🤖'; }
+.fa-brain::before { content: '🧠'; }
+.fa-shield-alt::before, .fa-shield::before { content: '🛡️'; }
+.fa-gamepad::before { content: '🎮'; }
+.fa-user-graduate::before { content: '🎓'; }
+.fa-tachometer-alt::before { content: '⚡'; }
+.fa-search::before { content: '🔍'; }
+.fa-info-circle::before { content: 'ℹ️'; }
+.fa-envelope::before { content: '📧'; }
+.fa-lightbulb::before { content: '💡'; }
+.fa-cogs::before { content: '⚙️'; }
+.fa-rocket::before { content: '🚀'; }
+.fa-exclamation-triangle::before { content: '⚠️'; }
+
 html {
     scroll-behavior: smooth;
 }
@@ -113,6 +134,11 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 1.2rem;
     color: #667eea;
 }
+.nav-logo-img {
+    height: 40px;
+    margin-right: 10px;
+}
+
 
 .nav-logo i {
     font-size: 1.5rem;
@@ -210,6 +236,11 @@ h1, h2, h3, h4, h5, h6 {
     color: white;
     animation: float 6s ease-in-out infinite;
 }
+.hero-falcon-img {
+    width: 200px;
+    height: 200px;
+}
+
 
 @keyframes float {
     0%, 100% { transform: translateY(0px); }
@@ -327,6 +358,12 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 8px;
     padding: 1.5rem;
     border-left: 4px solid #667eea;
+}
+
+.demo-result .classification-trustworthy { color: #48bb78; }
+.demo-result .classification-false { color: #e53e3e; }
+.demo-result .classification-suspicious {
+    color: #ed8936;
 }
 
 .loading {
@@ -526,6 +563,184 @@ h1, h2, h3, h4, h5, h6 {
     animation: float 6s ease-in-out infinite;
 }
 
+/* Team Section */
+.team {
+    padding: 6rem 0;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+}
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.team-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.team-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.team-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.15);
+}
+
+/* Team avatar styles removed - using text-only design */
+
+.team-info h3 {
+    font-size: 1.6rem;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+.team-role {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.team-description {
+    color: #718096;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.team-contact {
+    margin-bottom: 1.5rem;
+}
+
+.team-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 25px;
+    color: #4a5568;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.team-email:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    border-color: transparent;
+}
+
+.team-email i {
+    font-size: 0.9rem;
+}
+
+.team-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.skill-tag {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.team-mission {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.mission-card {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.mission-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.mission-card h3 {
+    font-size: 1.8rem;
+    color: #2d3748;
+    margin-bottom: 1rem;
+}
+
+.mission-card p {
+    color: #4a5568;
+    line-height: 1.7;
+    font-size: 1.1rem;
+}
+
+/* Voice Controls */
+.voice-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.voice-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.voice-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.voice-btn:active {
+    transform: translateY(0);
+}
+
 /* Footer */
 .footer {
     background: #2d3748;
@@ -547,6 +762,11 @@ h1, h2, h3, h4, h5, h6 {
     gap: 0.5rem;
     font-weight: 700;
     font-size: 1.2rem;
+}
+
+.footer-logo-img {
+    height: 30px;
+    margin-right: 10px;
 }
 
 .footer-logo i {
@@ -622,6 +842,24 @@ h1, h2, h3, h4, h5, h6 {
     .contact-content {
         grid-template-columns: 1fr;
         gap: 2rem;
+    }
+    
+    .team-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .team-card {
+        padding: 1.5rem;
+    }
+    
+    .mission-card {
+        padding: 2rem;
+    }
+    
+    .team-email {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.8rem;
     }
 }
 
