@@ -181,6 +181,7 @@ function initializeDemoFunctionality() {
         `;
         
         try {
+            console.log('🚀 Starting API call with hardcoded key - no prompt should appear!');
             const response = await fetch('https://echo-mind-191043917366.us-central1.run.app/analyze', {
                 method: 'POST',
                 headers: {
