@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+  <!-- Thunderwing Falcons Logo -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Wing design similar to your image -->
+  <path d="M120 60 L180 40 L160 80 L140 90 L120 85 Z" fill="url(#logoGradient)" opacity="0.9"/>
+  <path d="M160 50 L220 35 L200 75 L180 85 L160 80 Z" fill="url(#logoGradient)" opacity="0.7"/>
+  <path d="M200 45 L260 30 L240 70 L220 80 L200 75 Z" fill="url(#logoGradient)" opacity="0.5"/>
+  
+  <!-- Lightning bolt element -->
+  <path d="M140 45 L150 65 L145 65 L155 85 L140 70 L145 70 Z" fill="#00d4ff" opacity="0.8"/>
+  
+  <!-- Text -->
+  <text x="50" y="130" font-family="Arial, sans-serif" font-weight="bold" font-size="24" fill="url(#logoGradient)">THUNDERWING FALCONS</text>
+  <text x="80" y="150" font-family="Arial, sans-serif" font-size="12" fill="#666">ELECTRIFYING SPEED MEETS SHARP PRECISION</text>
+</svg>

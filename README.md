@@ -1,6 +1,6 @@
-# Thunderwing Falcons - AI Fact-Checker Website
+# Thunderwing Falcons - Echo Mind Website
 
-A professional website showcasing the Thunderwing Falcons AI Fact-Checker project built for the Google Hackathon.
+A professional website showcasing the Echo Mind AI fact-checking prototype by Thunderwing Falcons, built for the Google Hackathon.
 
 ## Features
 
@@ -45,11 +45,10 @@ Echo Mind/
 - **Google Fonts (Inter)** - Typography
 
 ### AI Backend (Original Python Project)
-- **Google Gemini AI** - Advanced fact analysis
-- **BigQuery** - Evidence database
-- **Vertex AI** - Google Cloud AI platform
+- **Google Vertex AI** - Advanced fact analysis
 - **Python** - Core logic
-- **Gradio** - Web interface
+- **Google Cloud** - Cloud platform
+- **Machine Learning** - AI algorithms
 
 ## Demo Features
 
@@ -79,8 +78,8 @@ The website includes a working demo that simulates the AI fact-checker with samp
 
 ### ⚡ Features Section
 - 6 key features with icons
-- Gemini AI integration
-- BigQuery database
+- Vertex AI integration
+- Intelligent analysis
 - Trusted source verification
 - Gamified learning
 - Educational insights
@@ -96,10 +95,10 @@ The website includes a working demo that simulates the AI fact-checker with samp
 - Technology stack
 - Performance statistics
 
-### 📞 Contact Section
-- Contact information
-- Working contact form
-- Social links placeholder
+### 📞 Project Info Section
+- Echo Mind project details
+- Technology information
+- Mission and innovation highlights
 
 ## Customization
 
@@ -145,9 +144,10 @@ Modify the `sampleResponses` object in `script.js` to add more demo scenarios.
 
 ## Credits
 
-- **Team**: Thunderwing Falcons
+- **Company**: Thunderwing Falcons - "Electrifying speed meets sharp precision"
+- **Prototype**: Echo Mind - "Suggesting intelligent responses and echoes of knowledge"
 - **Project**: Google Hackathon AI Fact-Checker
-- **Design**: Modern gradient UI
+- **Design**: Modern gradient UI with custom logo
 - **Icons**: Font Awesome
 - **Fonts**: Google Fonts (Inter)
 
@@ -157,4 +157,5 @@ This project was created for educational and hackathon purposes.
 
 ---
 
-**Thunderwing Falcons** - Electrifying speed meets sharp precision in the fight against misinformation! ⚡🦅
+**Thunderwing Falcons** - Electrifying speed meets sharp precision  
+**Echo Mind** - Suggesting intelligent responses and echoes of knowledge ⚡🦅

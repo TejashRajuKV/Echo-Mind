@@ -95,7 +95,7 @@ function analyzeClaimDemo(text) {
     
     return `
         <div class="demo-result">
-            <h3>🟢 AI Analysis Result</h3>
+            <h3>🟢 Echo Mind Analysis Result</h3>
             <div style="margin: 1rem 0;">
                 <strong>Classification:</strong> <span style="color: ${
                     response.classification === 'Trustworthy' ? '#48bb78' : 
