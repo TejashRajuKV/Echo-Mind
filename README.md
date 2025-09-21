@@ -27,12 +27,16 @@ A professional website showcasing the Echo Mind AI fact-checking prototype by Th
 
 ```
 Echo Mind/
-├── index.html          # Main HTML file
-├── styles.css          # CSS styling
-├── script.js           # JavaScript functionality
-├── assets/             # Images and icons folder
-├── README.md           # This file
-└── google_hackathonipynb (1).py  # Original AI fact-checker code
+├── index.html          # Main HTML file with team section
+├── styles.css          # CSS styling with enhanced design
+├── script.js           # JavaScript with voice features
+├── app.py              # Flask backend server
+├── analysis_engine.py  # AI fact-checking engine
+├── database_helper.py  # SQLite database functions
+├── factchecks.db      # Local fact-check database
+├── assets/            # Images and icons folder
+├── requirements.txt   # Python dependencies
+└── README.md          # This file
 ```
 
 ## Technologies Used
@@ -96,6 +100,16 @@ The website includes a working demo that simulates the AI fact-checker with samp
 - Project background
 - Technology stack
 - Performance statistics
+
+### 👥 Team Section
+- Thunderwing Falcons team members
+- Individual profiles with skills and contact info
+- Professional team presentation
+
+### 🎤 Voice Features
+- Interactive voice welcome message
+- Text-to-speech integration
+- Accessibility enhancements
 
 ### 📞 Project Info Section
 - Echo Mind project details

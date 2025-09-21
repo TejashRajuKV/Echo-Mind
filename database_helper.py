@@ -25,23 +25,56 @@ def search_fact_checks(search_text: str, limit: int = 3) -> List[str]:
         
         # Create search terms from the input text
         words = search_text.lower().split()
-        search_terms = [word.replace("'", "").replace('"', '') for word in words[:3]]  # Use first 3 words
+        # Clean up words and remove common stop words
+        stop_words = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'a', 'an'}
+        search_terms = [word.replace("'", "").replace('"', '').replace(',', '') for word in words if len(word) > 2 and word.lower() not in stop_words]
         
-        # Build dynamic query for better matching
+        # Build dynamic query for better matching - prioritize multiple word matches
         query = """
-        SELECT claim, verdict, source, url, explanation
+        SELECT claim, verdict, source, url, explanation,
+               CASE 
+                   WHEN LOWER(claim) LIKE ? THEN 100  -- Exact phrase match
+                   ELSE (
+                       {} -- Multiple word match scoring
+                   )
+               END as relevance_score
         FROM fact_checks
-        WHERE """
+        WHERE LOWER(claim) LIKE ? OR ({})
+        ORDER BY relevance_score DESC, LENGTH(claim)
+        LIMIT ?
+        """
         
-        conditions = []
-        params = []
+        # Parameters for exact phrase match
+        exact_phrase = f"%{search_text.lower()}%"
+        params = [exact_phrase, exact_phrase]
         
-        for term in search_terms:
-            conditions.append("LOWER(claim) LIKE ?")
+        # Build scoring for multiple words and conditions
+        word_conditions = []
+        word_scoring = []
+        
+        for i, term in enumerate(search_terms[:5]):  # Use up to 5 most relevant words
+            word_conditions.append("LOWER(claim) LIKE ?")
+            word_scoring.append(f"CASE WHEN LOWER(claim) LIKE ? THEN {10-i*2} ELSE 0 END")
+            params.append(f"%{term}%")
             params.append(f"%{term}%")
         
-        query += " OR ".join(conditions)
-        query += " ORDER BY LENGTH(claim) LIMIT ?"
+        # Format the query with scoring logic
+        if word_scoring:
+            query = query.format(
+                " + ".join(word_scoring),
+                " OR ".join(word_conditions)
+            )
+        else:
+            # Fallback if no good search terms
+            query = """
+            SELECT claim, verdict, source, url, explanation, 0 as relevance_score
+            FROM fact_checks
+            WHERE LOWER(claim) LIKE ?
+            ORDER BY LENGTH(claim)
+            LIMIT ?
+            """
+            params = [exact_phrase]
+        
         params.append(limit)
         
         cursor.execute(query, params)
