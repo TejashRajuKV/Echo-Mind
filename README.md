@@ -45,10 +45,12 @@ Echo Mind/
 - **Google Fonts (Inter)** - Typography
 
 ### AI Backend (Original Python Project)
-- **Google Vertex AI** - Advanced fact analysis
-- **Python** - Core logic
+- **Google Vertex AI** - AI platform
+- **Gemini 2.5 Pro** - Advanced fact analysis model
+- **BigQuery** - Evidence database for fact-checking
+- **Python** - Core logic and implementation
+- **Gradio** - Web interface for the AI model
 - **Google Cloud** - Cloud platform
-- **Machine Learning** - AI algorithms
 
 ## Demo Features
 
@@ -78,8 +80,8 @@ The website includes a working demo that simulates the AI fact-checker with samp
 
 ### ⚡ Features Section
 - 6 key features with icons
-- Vertex AI integration
-- Intelligent analysis
+- Vertex AI with Gemini integration
+- BigQuery evidence database
 - Trusted source verification
 - Gamified learning
 - Educational insights
