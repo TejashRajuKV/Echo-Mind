@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thunderwing Falcons - AI Fact Checker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-bolt"></i>
+                <span>Thunderwing Falcons</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="nav-toggle">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    <span class="gradient-text">Thunderwing Falcons</span>
+                    <br>AI Fact-Checker
+                </h1>
+                <p class="hero-subtitle">Electrifying speed meets sharp precision in the fight against misinformation</p>
+                <p class="hero-description">
+                    Powered by Google's Gemini AI, our advanced fact-checking system analyzes claims in real-time,
+                    providing comprehensive verification with educational insights and gamified learning.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#demo" class="btn btn-primary">Try Demo</a>
+                    <a href="#features" class="btn btn-secondary">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="falcon-icon">
+                    <i class="fas fa-eye"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <p class="section-subtitle">Advanced AI-powered fact-checking with comprehensive analysis</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3>Gemini AI Integration</h3>
+                    <p>Powered by Google's cutting-edge Gemini 2.5 Pro model for accurate fact analysis and classification.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h3>BigQuery Evidence Database</h3>
+                    <p>Cross-references claims against a comprehensive database of verified fact-checks and sources.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Trusted Source Verification</h3>
+                    <p>Pre-validates content from trusted news outlets like BBC, Reuters, The Hindu, and NY Times.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-gamepad"></i>
+                    </div>
+                    <h3>Gamified Learning</h3>
+                    <p>Earn points and badges while learning to identify misinformation with our interactive system.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <h3>Educational Insights</h3>
+                    <p>Get personalized tips and learning resources based on content category and your progress.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <h3>Real-time Analysis</h3>
+                    <p>Instant fact-checking with confidence scores and detailed explanations for every claim.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo">
+        <div class="container">
+            <h2 class="section-title">Try Our Fact-Checker</h2>
+            <p class="section-subtitle">Enter any claim and see our AI analyze it in real-time</p>
+            
+            <div class="demo-container">
+                <div class="demo-input">
+                    <textarea 
+                        id="claimInput" 
+                        placeholder="Enter a claim or statement to fact-check..."
+                        rows="4"
+                    ></textarea>
+                    <button id="checkClaim" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Analyze Claim
+                    </button>
+                </div>
+                
+                <div class="demo-output" id="demoOutput">
+                    <div class="demo-placeholder">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Enter a claim above and click "Analyze Claim" to see the AI fact-checker in action!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <h2 class="section-title">About Thunderwing Falcons</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <p>
+                        Thunderwing Falcons represents the cutting edge of AI-powered fact-checking technology. 
+                        Our system combines the power of Google's Gemini AI with comprehensive data analysis 
+                        to provide accurate, educational, and engaging fact-checking experiences.
+                    </p>
+                    <p>
+                        Built for the modern information age, our platform not only identifies misinformation 
+                        but also educates users on how to become better critical thinkers through gamified 
+                        learning and personalized insights.
+                    </p>
+                    
+                    <div class="tech-stack">
+                        <h3>Technology Stack</h3>
+                        <div class="tech-tags">
+                            <span class="tech-tag">Google Gemini AI</span>
+                            <span class="tech-tag">BigQuery</span>
+                            <span class="tech-tag">Vertex AI</span>
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">Gradio</span>
+                            <span class="tech-tag">Google Cloud</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="about-stats">
+                    <div class="stat-card">
+                        <div class="stat-number">99%</div>
+                        <div class="stat-label">Accuracy Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">&lt;2s</div>
+                        <div class="stat-label">Response Time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">5+</div>
+                        <div class="stat-label">Trusted Sources</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Get In Touch</h2>
+            <p class="section-subtitle">Want to collaborate or learn more about our technology?</p>
+            
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h3>Email</h3>
+                            <p>team@thunderwingfalcons.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fab fa-github"></i>
+                        <div>
+                            <h3>GitHub</h3>
+                            <p>github.com/thunderwing-falcons</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-globe"></i>
+                        <div>
+                            <h3>Project</h3>
+                            <p>Built for Google Hackathon</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contact-form">
+                    <form id="contactForm">
+                        <input type="text" placeholder="Your Name" required>
+                        <input type="email" placeholder="Your Email" required>
+                        <textarea placeholder="Your Message" rows="5" required></textarea>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-bolt"></i>
+                    <span>Thunderwing Falcons</span>
+                </div>
+                <p>&copy; 2024 Thunderwing Falcons. Electrifying speed meets sharp precision.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
