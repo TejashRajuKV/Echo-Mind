@@ -185,6 +185,7 @@ function initializeDemoFunctionality() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-API-Key': 'thunderwing-falcons-2024-secure-key'
                 },
                 body: JSON.stringify({ claim: claim }),
             });
