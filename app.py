@@ -46,6 +46,7 @@ def analyze():
     claim_text = data['claim']
 
     # Call the stateless analysis function, passing in the current server state.
+    # The function will automatically save new analysis to database
     result = analyze_claim(claim_text, user_points, user_badges)
 
     # Update the server's state with the new values returned by the analysis function.
@@ -53,6 +54,22 @@ def analyze():
     user_badges = result.get("gamification", {}).get("badges", user_badges)
 
     return jsonify(result)
+
+@app.route('/stats', methods=['GET'])
+def get_database_stats():
+    """Get statistics about the learning database"""
+    try:
+        from database_helper import get_database_stats
+        stats = get_database_stats()
+        return jsonify({
+            "status": "success",
+            "data": stats
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Could not retrieve database stats: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     # Use port 8080 for compatibility with cloud environments

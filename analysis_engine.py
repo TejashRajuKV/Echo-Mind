@@ -180,7 +180,7 @@ def personalized_tip(category):
         return "Financial claims should be verified through official economic data, regulatory filings, and reports from established financial institutions. Be cautious of get-rich-quick schemes, market manipulation claims, and investment advice from unqualified sources."
     return "For any claim, examine the original source, look for expert consensus, check publication dates for relevance, and be skeptical of emotionally charged language designed to provoke rather than inform."
 
-def analyze_claim(text, current_points=0, current_badges=None):
+def analyze_claim(text, current_points=0, current_badges=None, save_to_database=True):
     """
     Analyzes a claim by checking it with the Gemini model, searching a BigQuery
     database, and providing educational and personalized feedback. It is a
@@ -213,8 +213,8 @@ def analyze_claim(text, current_points=0, current_badges=None):
     category = categorize_text(text)
     tip = personalized_tip(category)
 
-    # Return structured JSON data (as a dictionary)
-    return {
+    # Prepare result
+    result = {
         "classification": verdict,
         "score": score,
         "explanation": explanation,
@@ -230,6 +230,17 @@ def analyze_claim(text, current_points=0, current_badges=None):
             "tip": tip
         }
     }
+    
+    # Save analysis to database for future reference (learning system)
+    if save_to_database and text and text.strip():
+        try:
+            from database_helper import save_analysis_to_database
+            save_analysis_to_database(text, result)
+        except Exception as e:
+            print(f"Warning: Could not save to database: {e}")
+            # Continue without failing - this is optional functionality
+    
+    return result
 
 if __name__ == '__main__':
     # This block allows you to test the script directly.

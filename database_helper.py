@@ -136,6 +136,33 @@ def add_fact_check(claim: str, verdict: str, source: str, url: str = None, expla
     except Exception as e:
         print(f"Error adding fact-check: {e}")
         return False
+        
+def save_analysis_to_database(claim: str, analysis_result: dict) -> bool:
+    """
+    Save a user's claim and AI analysis result to the database.
+    This helps the system learn and improve over time.
+    """
+    try:
+        # Extract relevant data from analysis result
+        verdict = analysis_result.get("classification", "Unknown")
+        explanation = analysis_result.get("explanation", "No explanation available.")
+        source = "Echo Mind AI"
+        
+        # Save to database using existing function
+        success = add_fact_check(
+            claim=claim,
+            verdict=verdict,
+            source=source,
+            explanation=explanation
+        )
+        
+        if success:
+            print(f"✅ Added new analysis to database: '{claim}' - {verdict}")
+        return success
+        
+    except Exception as e:
+        print(f"Error saving analysis to database: {e}")
+        return False
 
 def get_database_stats() -> Dict:
     """Get statistics about the database"""
