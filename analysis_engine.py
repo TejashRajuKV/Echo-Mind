@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 
 PROJECT_ID = "echo-mind-472808"
 
-LOCATION = "us-central1"
+LOCATION = "asia-south1"  # Mumbai, India - Better for Indian context and reduced latency
 
 from google.cloud import aiplatform
 import vertexai
@@ -41,7 +41,13 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 print(f"✅ Vertex AI initialized for project: {PROJECT_ID}")
 
 GEMINI_MODEL = "gemini-2.5-pro" # Using Gemini 2.5 Pro for enhanced fact-checking capabilities
-TRUSTED_DOMAINS = ["thehindu.com", "bbc.com", "nytimes.com", "indiatoday.in", "reuters.com"]
+TRUSTED_DOMAINS = [
+    # Major Indian Sources
+    "thehindu.com", "indiatoday.in", "timesofindia.indiatimes.com", "indianexpress.com", 
+    "ndtv.com", "hindustantimes.com", "news18.com", "republicworld.com", "zeenews.india.com",
+    # International Sources
+    "bbc.com", "reuters.com", "nytimes.com", "cnn.com", "apnews.com"
+]
 
 def load_current_context():
     """
@@ -84,38 +90,148 @@ def search_current_info(query, max_results=3):
         date_info = get_current_date_info()
         current_info.append(f"Current Date: {date_info['current_date']} ({date_info['day_of_week']})")
         
-        # For political claims, provide context from auto-updater or fallback
-        political_keywords = ['cm', 'chief minister', 'prime minister', 'president', 'election', 'government']
+        # For ALL topics, provide context from auto-updater or fallback
+        # Comprehensive topic detection
+        topic_keywords = {
+            'politics': ['cm', 'chief minister', 'prime minister', 'president', 'election', 'government', 'minister', 'parliament', 'assembly'],
+            'health': ['covid', 'vaccine', 'health', 'medical', 'disease', 'treatment', 'hospital', 'doctor', 'medicine', 'healthcare'],
+            'science': ['research', 'study', 'scientist', 'discovery', 'experiment', 'technology', 'innovation', 'space', 'climate change'],
+            'technology': ['tech', 'software', 'app', 'internet', 'cyber', 'data', 'ai', 'artificial intelligence', 'smartphone', 'computer'],
+            'business': ['stock', 'market', 'economy', 'finance', 'investment', 'banking', 'company', 'startup', 'industry'],
+            'sports': ['cricket', 'football', 'hockey', 'tennis', 'olympics', 'ipl', 'fifa', 'world cup', 'player', 'match'],
+            'entertainment': ['movie', 'film', 'bollywood', 'actor', 'actress', 'music', 'netflix', 'celebrity', 'award'],
+            'education': ['school', 'college', 'university', 'student', 'exam', 'jee', 'neet', 'upsc', 'degree']
+        }
         
-        if any(keyword in query.lower() for keyword in political_keywords):
-            # Check auto-updater political updates first
-            political_updates = current_context.get('political_updates', {})
-            
+        # Detect query topic
+        query_topic = 'general'
+        for topic, keywords in topic_keywords.items():
+            if any(keyword in query.lower() for keyword in keywords):
+                query_topic = topic
+                break
+        
+        # Get comprehensive updates from auto-updater
+        comprehensive_updates = current_context.get('comprehensive_updates', {})
+        categorized_updates = current_context.get('categorized_updates', {})
+        
+        if query_topic != 'general' or any(any(keyword in query.lower() for keyword in keywords) for keywords in topic_keywords.values()):
+            # Handle topic-specific information
             query_lower = query.lower()
-            if 'andhra pradesh' in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
-                if 'andhra pradesh_cm' in political_updates:
-                    update = political_updates['andhra pradesh_cm']
-                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
-                else:
-                    # Fallback to hard-coded info if auto-updater hasn't found recent updates
-                    current_info.append("Current Info: Chandrababu Naidu (TDP) is the Chief Minister of Andhra Pradesh since June 2024")
-                    current_info.append("Election Update: TDP defeated YSRCP in 2024 Andhra Pradesh assembly elections")
             
-            elif 'telangana' in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
-                if 'telangana_cm' in political_updates:
-                    update = political_updates['telangana_cm']
-                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
-                else:
-                    # Fallback to hard-coded info
-                    current_info.append("Current Info: A. Revanth Reddy (Congress) is the Chief Minister of Telangana since December 2023")
-                    current_info.append("Election Update: Congress won Telangana assembly elections in November 2023")
+            # Add topic-specific context
+            current_info.append(f"Query Topic Detected: {query_topic.title()}")
             
-            elif 'prime minister' in query_lower or ' pm ' in query_lower:
+            # Get relevant updates for the detected topic
+            topic_updates = categorized_updates.get(query_topic, {})
+            if topic_updates:
+                current_info.append(f"Recent {query_topic.title()} Updates Available: {len(topic_updates)} items")
+                # Add most recent updates (limit to 3 most recent)
+                sorted_updates = sorted(topic_updates.items(), 
+                                      key=lambda x: x[1].get('date', ''), reverse=True)
+                for key, update in sorted_updates[:3]:
+                    current_info.append(f"• {update['title']} - {update['source']} ({update['date'][:10]})")
+            
+            # Special handling for specific topics
+            if query_topic == 'politics':
+                # Political-specific logic (keep existing detailed political handling)
+                political_updates = {k: v for k, v in comprehensive_updates.items() 
+                                   if v.get('category') == 'politics' or v.get('type', '').endswith('_update')}
+                
+                # Look for state-specific updates
+            indian_states = {
+                'andhra pradesh': ('Chandrababu Naidu', 'TDP', 'June 2024'),
+                'telangana': ('A. Revanth Reddy', 'Congress', 'December 2023'),
+                'karnataka': ('Siddaramaiah', 'Congress', '2023'),
+                'tamil nadu': ('M.K. Stalin', 'DMK', '2021'),
+                'kerala': ('Pinarayi Vijayan', 'CPI(M)', '2021'),
+                'maharashtra': ('Eknath Shinde', 'Shiv Sena', '2022'),
+                'west bengal': ('Mamata Banerjee', 'AITC', '2011'),
+                'uttar pradesh': ('Yogi Adityanath', 'BJP', '2017'),
+                'gujarat': ('Bhupendra Patel', 'BJP', '2021'),
+                'rajasthan': ('Ashok Gehlot', 'Congress', '2018')
+            }
+            
+            # Look for state-specific updates
+            for state, (cm_name, party, since) in indian_states.items():
+                if state in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
+                    state_key = state.replace(' ', '_') + '_cm'
+                    if state_key in political_updates:
+                        update = political_updates[state_key]
+                        current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                        if update.get('state'):
+                            current_info.append(f"State: {update['state']}")
+                    else:
+                        # Fallback to known information
+                        current_info.append(f"Current CM of {state.title()}: {cm_name} ({party}) since {since}")
+                        current_info.append(f"Note: Please verify current status as political information changes frequently")
+                    break
+            
+            # Check for PM updates
+            if 'prime minister' in query_lower or ' pm ' in query_lower:
                 if 'prime_minister' in political_updates:
                     update = political_updates['prime_minister']
                     current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
                 else:
-                    current_info.append("Current PM: Narendra Modi (BJP) - verify for any recent changes")
+                    current_info.append("Current PM: Narendra Modi (BJP) since 2014 - verify for any recent changes")
+            
+            # Check for election updates
+            if any(term in query_lower for term in ['election', 'vote', 'poll', 'ballot']):
+                election_updates = {k: v for k, v in political_updates.items() if 'election' in k}
+                if election_updates:
+                    for election_type, update in election_updates.items():
+                        current_info.append(f"Election Update: {update['title']} - {update['source']} ({update['date'][:10]})")
+            
+            # Check for party updates
+            major_parties = ['bjp', 'congress', 'aap', 'brs', 'tdp', 'ysrcp', 'dmk', 'aiadmk']
+            for party in major_parties:
+                if party in query_lower:
+                    party_key = f'{party}_update'
+                    if party_key in political_updates:
+                        update = political_updates[party_key]
+                        current_info.append(f"{party.upper()} Update: {update['title']} - {update['source']} ({update['date'][:10]})")
+                    break
+            
+            elif query_topic == 'health':
+                # Health-specific guidance
+                current_info.append("Health Information: Verify with official health authorities (WHO, CDC, ICMR, Ministry of Health)")
+                if 'covid' in query_lower or 'vaccine' in query_lower:
+                    current_info.append("COVID/Vaccine Info: Check latest guidelines from health.gov.in and WHO")
+            
+            elif query_topic == 'science':
+                # Science-specific guidance
+                current_info.append("Scientific Claims: Verify through peer-reviewed research and official scientific institutions")
+                if 'climate' in query_lower:
+                    current_info.append("Climate Information: Refer to IPCC reports and national meteorological departments")
+            
+            elif query_topic == 'technology':
+                # Technology-specific guidance
+                current_info.append("Technology News: Cross-check with official company announcements and tech publications")
+                if any(term in query_lower for term in ['ai', 'artificial intelligence', 'data']):
+                    current_info.append("AI/Data Claims: Verify with research institutions and official tech companies")
+            
+            elif query_topic == 'business':
+                # Business-specific guidance
+                current_info.append("Business/Finance Info: Verify with official financial institutions and regulatory bodies")
+                if any(term in query_lower for term in ['stock', 'market', 'investment']):
+                    current_info.append("Market Information: Cross-check with NSE, BSE, and financial regulatory authorities")
+            
+            elif query_topic == 'sports':
+                # Sports-specific guidance
+                current_info.append("Sports Information: Verify with official sports bodies and federations")
+                if 'cricket' in query_lower:
+                    current_info.append("Cricket Info: Check with BCCI, ICC, and official team websites")
+            
+            elif query_topic == 'entertainment':
+                # Entertainment-specific guidance
+                current_info.append("Entertainment News: Verify with official announcements and reputable film industry sources")
+                if 'bollywood' in query_lower or 'movie' in query_lower:
+                    current_info.append("Film Industry: Cross-check with official production houses and film bodies")
+            
+            elif query_topic == 'education':
+                # Education-specific guidance
+                current_info.append("Education Information: Verify with official educational institutions and government bodies")
+                if any(term in query_lower for term in ['exam', 'result', 'admission']):
+                    current_info.append("Academic Info: Check official exam board websites and institution announcements")
         
         # Add information about data freshness
         if current_context.get('last_updated'):
@@ -162,10 +278,13 @@ CURRENT CONTEXT:
 CRITICAL CONTEXT FOR CURRENT CLAIMS:
 - ALWAYS verify political office holders against the most recent information
 - My knowledge cutoff is around April 2024, so I may not have information about very recent events
+- FOCUS ON INDIAN CONTEXT: Prioritize Indian political, social, and cultural context in analysis
 - Indian Politics Update (2024): Chandrababu Naidu (TDP) is the current CM of Andhra Pradesh since June 2024, NOT Jagan Mohan Reddy
 - For any political claims about "current" office holders, double-check against recent election results
 - Pay special attention to time-sensitive information that may have changed recently
 - For claims about events after April 2024, acknowledge knowledge limitations and suggest verification
+- Indian Regional Context: Consider state-specific politics, languages, cultures, and current affairs
+- Trusted Indian Sources: The Hindu, India Today, Times of India, Indian Express, NDTV, etc.
 
 ANALYSIS INSTRUCTIONS:
 1. Carefully examine the claim for factual accuracy, especially recent political changes
@@ -351,9 +470,15 @@ def educational_insights():
     ]
 
 CATEGORIES = {
-    "health": ["covid", "vaccine", "cure", "disease", "doctor"],
-    "politics": ["election", "government", "minister", "policy"],
-    "finance": ["stock", "market", "crypto", "investment"]
+    "health": ["covid", "vaccine", "cure", "disease", "doctor", "medical", "hospital", "medicine", "healthcare", "treatment"],
+    "politics": ["election", "government", "minister", "policy", "parliament", "assembly", "president", "chief minister"],
+    "science": ["research", "study", "scientist", "discovery", "experiment", "climate change", "global warming", "space", "technology"],
+    "technology": ["tech", "software", "app", "internet", "cyber", "ai", "artificial intelligence", "smartphone", "computer", "data"],
+    "business": ["stock", "market", "crypto", "investment", "economy", "finance", "banking", "company", "startup", "industry"],
+    "sports": ["cricket", "football", "hockey", "tennis", "olympics", "ipl", "fifa", "world cup", "player", "match", "tournament"],
+    "entertainment": ["movie", "film", "bollywood", "actor", "actress", "music", "netflix", "celebrity", "award", "cinema"],
+    "education": ["school", "college", "university", "student", "exam", "jee", "neet", "upsc", "degree", "admission"],
+    "social": ["social media", "viral", "trending", "community", "society", "culture", "religion", "festival"]
 }
 
 def categorize_text(text):
@@ -367,12 +492,24 @@ def categorize_text(text):
 def personalized_tip(category):
     """Returns a personalized tip based on the category."""
     if category == "health":
-        return "For health claims, always consult authoritative medical sources like WHO, CDC, FDA, or peer-reviewed medical journals. Be especially wary of miracle cures, alternative treatments without clinical trials, and claims that contradict established medical consensus."
+        return "For health claims, always consult authoritative medical sources like WHO, CDC, ICMR, or peer-reviewed medical journals. Be especially wary of miracle cures, alternative treatments without clinical trials, and claims that contradict established medical consensus. Cross-check with health.gov.in for India-specific health information."
     elif category == "politics":
-        return "Political claims require extra scrutiny due to inherent bias. Cross-reference information across multiple reputable news sources with different political leanings, check original documents or speeches when possible, and be aware of partisan framing."
-    elif category == "finance":
-        return "Financial claims should be verified through official economic data, regulatory filings, and reports from established financial institutions. Be cautious of get-rich-quick schemes, market manipulation claims, and investment advice from unqualified sources."
-    return "For any claim, examine the original source, look for expert consensus, check publication dates for relevance, and be skeptical of emotionally charged language designed to provoke rather than inform."
+        return "Political claims require extra scrutiny due to inherent bias. Cross-reference information across multiple reputable news sources with different political leanings, check original documents or speeches when possible, and be aware of partisan framing. For Indian politics, verify current office holders as they change frequently."
+    elif category == "science":
+        return "Scientific claims should be verified through peer-reviewed research, official research institutions, and scientific consensus. Be cautious of studies with small sample sizes, conflicts of interest, or sensational headlines that misrepresent research findings. For climate science, refer to IPCC reports."
+    elif category == "technology":
+        return "Technology claims should be verified through official company announcements, tech industry publications, and expert analysis. Be skeptical of breakthrough claims without independent verification, privacy concerns, and cybersecurity advice from unqualified sources."
+    elif category == "business":
+        return "Financial claims should be verified through official economic data, regulatory filings, and reports from established financial institutions. Be cautious of get-rich-quick schemes, market manipulation claims, and investment advice from unqualified sources. For Indian markets, check with NSE, BSE, and SEBI."
+    elif category == "sports":
+        return "Sports information should be verified with official sports bodies, team websites, and reputable sports journalism. Be cautious of transfer rumors, performance statistics without context, and unofficial announcements. For cricket, check BCCI and ICC official sources."
+    elif category == "entertainment":
+        return "Entertainment news should be verified through official announcements from production houses, artists, and industry bodies. Be skeptical of gossip, unconfirmed casting news, and box office figures from unofficial sources. Cross-check with trade publications and official social media accounts."
+    elif category == "education":
+        return "Education information should be verified with official educational institutions, exam boards, and government education departments. Be cautious of fake admission notifications, unofficial result announcements, and misleading scholarship information. Always check official websites directly."
+    elif category == "social":
+        return "Social and cultural claims should be verified through multiple sources, official cultural institutions, and expert anthropologists or sociologists. Be aware of cultural bias, oversimplification of complex social issues, and claims that promote discrimination or stereotypes."
+    return "For any claim, examine the original source, look for expert consensus, check publication dates for relevance, and be skeptical of emotionally charged language designed to provoke rather than inform. Always cross-reference with multiple credible sources."
 
 def analyze_claim(text, current_points=0, current_badges=None, save_to_database=True):
     """

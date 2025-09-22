@@ -42,27 +42,80 @@ class AutoUpdater:
         self.newsapi_key = os.environ.get('NEWSAPI_KEY', 'YOUR_NEWS_API_KEY')
         self.update_log_file = 'last_update.json'
         
-        # News sources and their RSS feeds
+        # News sources and their RSS feeds (India-focused)
         self.news_sources = {
-            'BBC': 'http://feeds.bbci.co.uk/news/rss.xml',
-            'Reuters': 'http://feeds.reuters.com/reuters/topNews',
+            # Major Indian Sources (Priority)
             'The Hindu': 'https://www.thehindu.com/news/feeder/default.rss',
             'India Today': 'https://www.indiatoday.in/rss/1206578',
-            'Times of India': 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms'
+            'Times of India': 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+            'Indian Express': 'https://indianexpress.com/section/india/feed/',
+            'NDTV': 'https://feeds.feedburner.com/NDTV-LatestNews',
+            'Hindustan Times': 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
+            'News18': 'https://www.news18.com/rss/india.xml',
+            
+            # International Sources for Global Context
+            'BBC': 'http://feeds.bbci.co.uk/news/rss.xml',
+            'Reuters': 'http://feeds.reuters.com/reuters/topNews'
         }
         
-        # Political keywords to track
+        # Political keywords to track (India-focused)
         self.political_keywords = [
             'chief minister', 'cm', 'prime minister', 'pm', 'president',
-            'election', 'government', 'minister', 'parliament', 'assembly',
-            'andhra pradesh', 'telangana', 'karnataka', 'tamil nadu', 'kerala'
+            'election', 'government', 'minister', 'parliament', 'assembly', 'lok sabha', 'rajya sabha',
+            'bjp', 'congress', 'aap', 'trs', 'brs', 'tdp', 'ysrcp', 'dmk', 'aiadmk', 'jdu', 'rjd',
+            # Major Indian States
+            'andhra pradesh', 'telangana', 'karnataka', 'tamil nadu', 'kerala', 'maharashtra',
+            'uttar pradesh', 'bihar', 'west bengal', 'gujarat', 'rajasthan', 'madhya pradesh',
+            'odisha', 'punjab', 'haryana', 'jharkhand', 'assam', 'himachal pradesh', 'uttarakhand',
+            'goa', 'manipur', 'meghalaya', 'nagaland', 'sikkim', 'tripura', 'arunachal pradesh', 'mizoram',
+            # Political Terms
+            'governor', 'cabinet', 'coalition', 'alliance', 'bjp', 'inc', 'modi', 'gandhi',
+            'delhi', 'mumbai', 'kolkata', 'chennai', 'hyderabad', 'bangalore', 'pune', 'ahmedabad'
         ]
         
-        # Health and science keywords
-        self.health_keywords = [
-            'covid', 'vaccine', 'health', 'medical', 'disease', 'treatment',
-            'who', 'fda', 'clinical trial', 'research study'
-        ]
+        # Comprehensive topic keywords for broad coverage
+        self.topic_keywords = {
+            'health': [
+                'covid', 'vaccine', 'health', 'medical', 'disease', 'treatment', 'hospital', 'doctor',
+                'who', 'fda', 'clinical trial', 'research study', 'medicine', 'therapy', 'diagnosis',
+                'pandemic', 'epidemic', 'mental health', 'ayurveda', 'healthcare', 'pharmacy'
+            ],
+            'science': [
+                'research', 'study', 'scientist', 'discovery', 'experiment', 'technology', 'innovation',
+                'artificial intelligence', 'ai', 'machine learning', 'space', 'nasa', 'isro', 'satellite',
+                'climate change', 'global warming', 'environment', 'renewable energy', 'solar', 'electric'
+            ],
+            'technology': [
+                'tech', 'software', 'app', 'internet', 'cyber', 'data', 'privacy', 'security',
+                'smartphone', 'computer', 'laptop', 'gadget', 'startup', 'google', 'microsoft', 'apple',
+                'facebook', 'meta', 'twitter', 'social media', 'blockchain', 'cryptocurrency', 'bitcoin'
+            ],
+            'business': [
+                'stock', 'market', 'economy', 'finance', 'investment', 'banking', 'inflation', 'gdp',
+                'company', 'corporate', 'industry', 'manufacturing', 'trade', 'export', 'import',
+                'startup', 'funding', 'ipo', 'merger', 'acquisition', 'revenue', 'profit', 'loss'
+            ],
+            'sports': [
+                'cricket', 'football', 'hockey', 'tennis', 'badminton', 'kabaddi', 'olympics', 'asian games',
+                'ipl', 'fifa', 'world cup', 'player', 'team', 'match', 'tournament', 'championship',
+                'coach', 'athlete', 'medal', 'record', 'performance', 'injury', 'retirement'
+            ],
+            'entertainment': [
+                'movie', 'film', 'cinema', 'bollywood', 'hollywood', 'tollywood', 'actor', 'actress',
+                'director', 'music', 'song', 'album', 'concert', 'show', 'tv', 'series', 'web series',
+                'netflix', 'amazon prime', 'celebrity', 'award', 'oscar', 'filmfare', 'box office'
+            ],
+            'education': [
+                'school', 'college', 'university', 'student', 'teacher', 'professor', 'exam', 'result',
+                'admission', 'entrance', 'jee', 'neet', 'upsc', 'degree', 'course', 'syllabus',
+                'education policy', 'scholarship', 'research', 'phd', 'iit', 'iim', 'cbse', 'icse'
+            ],
+            'social': [
+                'social media', 'viral', 'trending', 'influencer', 'youtube', 'instagram', 'tiktok',
+                'community', 'society', 'culture', 'religion', 'festival', 'tradition', 'custom',
+                'discrimination', 'equality', 'justice', 'human rights', 'women empowerment'
+            ]
+        }
         
         self.db_path = 'factchecks.db'
         self.current_context_file = 'current_context.json'
@@ -170,38 +223,55 @@ class AutoUpdater:
             return []
 
     def categorize_news(self, text: str) -> str:
-        """Categorize news based on content"""
+        """Categorize news based on comprehensive content analysis"""
         text_lower = text.lower()
         
+        # Check politics first (highest priority for Indian context)
         if any(keyword in text_lower for keyword in self.political_keywords):
             return 'politics'
-        elif any(keyword in text_lower for keyword in self.health_keywords):
-            return 'health'
-        elif any(keyword in text_lower for keyword in ['stock', 'market', 'economy', 'finance', 'crypto']):
-            return 'finance'
-        elif any(keyword in text_lower for keyword in ['climate', 'environment', 'global warming', 'pollution']):
-            return 'environment'
+        
+        # Check all other topic categories
+        category_scores = {}
+        for category, keywords in self.topic_keywords.items():
+            score = sum(1 for keyword in keywords if keyword in text_lower)
+            if score > 0:
+                category_scores[category] = score
+        
+        # Return category with highest score, or 'general' if no match
+        if category_scores:
+            return max(category_scores, key=category_scores.get)
         else:
             return 'general'
 
-    def extract_political_updates(self, news_items: List[NewsItem]) -> Dict[str, str]:
-        """Extract current political information from news"""
-        political_updates = {}
+    def extract_comprehensive_updates(self, news_items: List[NewsItem]) -> Dict[str, str]:
+        """Extract current information from news across all categories"""
+        all_updates = {}
         
         for item in news_items:
+            text = (item.title + ' ' + item.description).lower()
+            
+            # Political updates (existing logic)
             if item.category == 'politics':
                 text = (item.title + ' ' + item.description).lower()
                 
-                # Check for CM updates
+                # Check for CM updates (expanded for all major Indian states)
                 if 'chief minister' in text or ' cm ' in text:
-                    for state in ['andhra pradesh', 'telangana', 'karnataka', 'tamil nadu', 'kerala']:
+                    indian_states = [
+                        'andhra pradesh', 'telangana', 'karnataka', 'tamil nadu', 'kerala', 'maharashtra',
+                        'uttar pradesh', 'bihar', 'west bengal', 'gujarat', 'rajasthan', 'madhya pradesh',
+                        'odisha', 'punjab', 'haryana', 'jharkhand', 'assam', 'himachal pradesh', 'uttarakhand',
+                        'goa', 'manipur', 'meghalaya', 'nagaland', 'sikkim', 'tripura', 'arunachal pradesh', 'mizoram'
+                    ]
+                    for state in indian_states:
                         if state in text:
-                            political_updates[f"{state}_cm"] = {
+                            political_updates[f"{state.replace(' ', '_')}_cm"] = {
                                 'title': item.title,
                                 'description': item.description,
                                 'source': item.source,
                                 'url': item.url,
-                                'date': item.published_date.isoformat()
+                                'date': item.published_date.isoformat(),
+                                'state': state.title(),
+                                'type': 'chief_minister_update'
                             }
                 
                 # Check for PM updates
@@ -211,22 +281,156 @@ class AutoUpdater:
                         'description': item.description,
                         'source': item.source,
                         'url': item.url,
-                        'date': item.published_date.isoformat()
+                        'date': item.published_date.isoformat(),
+                        'type': 'prime_minister_update'
                     }
+                
+                # Check for Election updates
+                if any(term in text for term in ['election', 'voting', 'poll', 'ballot', 'constituency']):
+                    election_key = 'general_election'
+                    if 'lok sabha' in text:
+                        election_key = 'lok_sabha_election'
+                    elif 'assembly' in text:
+                        election_key = 'assembly_election'
+                    elif 'municipal' in text or 'civic' in text:
+                        election_key = 'municipal_election'
+                    
+                    political_updates[election_key] = {
+                        'title': item.title,
+                        'description': item.description,
+                        'source': item.source,
+                        'url': item.url,
+                        'date': item.published_date.isoformat(),
+                        'type': 'election_update'
+                    }
+                
+                # Check for Governor updates
+                if 'governor' in text:
+                    political_updates['governor_update'] = {
+                        'title': item.title,
+                        'description': item.description,
+                        'source': item.source,
+                        'url': item.url,
+                        'date': item.published_date.isoformat(),
+                        'type': 'governor_update'
+                    }
+                
+                # Check for Party/Coalition updates
+                major_parties = ['bjp', 'congress', 'aap', 'brs', 'tdp', 'ysrcp', 'dmk', 'aiadmk']
+                for party in major_parties:
+                    if party in text:
+                        political_updates[f'{party}_update'] = {
+                            'title': item.title,
+                            'description': item.description,
+                            'source': item.source,
+                            'url': item.url,
+                            'date': item.published_date.isoformat(),
+                            'party': party.upper(),
+                            'type': 'party_update'
+                        }
+                        break  # Only add one party update per news item
+            
+            # Health updates
+            elif item.category == 'health':
+                health_key = f"health_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[health_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': 'health',
+                    'type': 'health_update'
+                }
+            
+            # Science & Technology updates
+            elif item.category in ['science', 'technology']:
+                tech_key = f"{item.category}_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[tech_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': item.category,
+                    'type': f'{item.category}_update'
+                }
+            
+            # Business & Finance updates
+            elif item.category == 'business':
+                business_key = f"business_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[business_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': 'business',
+                    'type': 'business_update'
+                }
+            
+            # Sports updates
+            elif item.category == 'sports':
+                sports_key = f"sports_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[sports_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': 'sports',
+                    'type': 'sports_update'
+                }
+            
+            # Entertainment updates
+            elif item.category == 'entertainment':
+                entertainment_key = f"entertainment_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[entertainment_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': 'entertainment',
+                    'type': 'entertainment_update'
+                }
+            
+            # Education updates
+            elif item.category == 'education':
+                education_key = f"education_{item.published_date.strftime('%Y%m%d')}_{len(all_updates)}"
+                all_updates[education_key] = {
+                    'title': item.title,
+                    'description': item.description,
+                    'source': item.source,
+                    'url': item.url,
+                    'date': item.published_date.isoformat(),
+                    'category': 'education',
+                    'type': 'education_update'
+                }
         
-        return political_updates
+        return all_updates
 
     def update_current_context(self, news_items: List[NewsItem]):
-        """Update the current context file with latest information"""
+        """Update the current context file with latest information across all topics"""
         try:
-            political_updates = self.extract_political_updates(news_items)
+            comprehensive_updates = self.extract_comprehensive_updates(news_items)
+            
+            # Separate updates by category for better organization
+            categorized_updates = {}
+            for key, update in comprehensive_updates.items():
+                category = update.get('category', 'general')
+                if category not in categorized_updates:
+                    categorized_updates[category] = {}
+                categorized_updates[category][key] = update
             
             current_context = {
                 'last_updated': datetime.now().isoformat(),
-                'political_updates': political_updates,
+                'comprehensive_updates': comprehensive_updates,
+                'categorized_updates': categorized_updates,
                 'recent_news_count': len(news_items),
                 'categories': {},
-                'trusted_sources': list(set([item.source for item in news_items]))
+                'trusted_sources': list(set([item.source for item in news_items])),
+                'topic_coverage': list(categorized_updates.keys())
             }
             
             # Count by category
@@ -236,7 +440,9 @@ class AutoUpdater:
             with open(self.current_context_file, 'w') as f:
                 json.dump(current_context, f, indent=2)
             
-            logger.info(f"Updated current context with {len(political_updates)} political updates")
+            total_updates = len(comprehensive_updates)
+            topics_covered = len(categorized_updates)
+            logger.info(f"Updated current context with {total_updates} updates across {topics_covered} topic categories")
             
         except Exception as e:
             logger.error(f"Error updating current context: {e}")
