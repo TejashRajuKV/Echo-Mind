@@ -153,6 +153,47 @@ def add_fact_check(claim: str, verdict: str, source: str, url: str = None, expla
         print(f"Error adding fact-check: {e}")
         return False
         
+def add_fact_check_to_database(fact_check_data: dict) -> bool:
+    """
+    Add a fact-check from auto-updater with enhanced data structure
+    """
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        # Check if this claim already exists (avoid duplicates)
+        cursor.execute(
+            "SELECT id FROM fact_checks WHERE LOWER(claim) = LOWER(?) AND source = ?",
+            (fact_check_data['claim'], fact_check_data['source'])
+        )
+        existing = cursor.fetchone()
+        
+        if existing:
+            print(f"Skipping duplicate: {fact_check_data['claim'][:50]}...")
+            conn.close()
+            return True
+        
+        # Insert new fact-check
+        cursor.execute("""
+            INSERT INTO fact_checks (claim, verdict, source, url, explanation)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            fact_check_data['claim'],
+            fact_check_data['verdict'],
+            fact_check_data['source'],
+            fact_check_data.get('url', ''),
+            fact_check_data.get('explanation', '')
+        ))
+        
+        conn.commit()
+        conn.close()
+        print(f"✅ Added: {fact_check_data['claim'][:50]}... - {fact_check_data['verdict']}")
+        return True
+        
+    except Exception as e:
+        print(f"Error adding fact-check to database: {e}")
+        return False
+
 def save_analysis_to_database(claim: str, analysis_result: dict) -> bool:
     """
     Save a user's claim and AI analysis result to the database.

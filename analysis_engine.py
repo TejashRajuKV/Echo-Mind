@@ -40,59 +40,132 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 print(f"✅ Vertex AI initialized for project: {PROJECT_ID}")
 
-GEMINI_MODEL = "gemini-2.0-flash" # Using auto-updated alias that points to latest stable version
+GEMINI_MODEL = "gemini-2.5-pro" # Using Gemini 2.5 Pro for enhanced fact-checking capabilities
 TRUSTED_DOMAINS = ["thehindu.com", "bbc.com", "nytimes.com", "indiatoday.in", "reuters.com"]
+
+def load_current_context():
+    """
+    Load current context from auto-updater system
+    """
+    try:
+        import json
+        if os.path.exists('current_context.json'):
+            with open('current_context.json', 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Warning: Could not load current context: {e}")
+    return {}
+
+def get_current_date_info():
+    """
+    Get current date and time information for AI context
+    """
+    from datetime import datetime
+    now = datetime.now()
+    return {
+        'current_date': now.strftime('%Y-%m-%d'),
+        'current_time': now.strftime('%H:%M:%S'),
+        'day_of_week': now.strftime('%A'),
+        'month': now.strftime('%B'),
+        'year': now.year
+    }
 
 def search_current_info(query, max_results=3):
     """
-    Search for current information using a simple web search approach.
+    Search for current information using auto-updater context and fallback methods.
     This provides recent context for political and time-sensitive claims.
     """
     try:
-        # For political claims, provide context about recent changes
+        # Load current context from auto-updater
+        current_context = load_current_context()
+        current_info = []
+        
+        # Add current date information
+        date_info = get_current_date_info()
+        current_info.append(f"Current Date: {date_info['current_date']} ({date_info['day_of_week']})")
+        
+        # For political claims, provide context from auto-updater or fallback
         political_keywords = ['cm', 'chief minister', 'prime minister', 'president', 'election', 'government']
         
         if any(keyword in query.lower() for keyword in political_keywords):
-            # Check for specific known updates
-            if 'andhra pradesh' in query.lower() and ('cm' in query.lower() or 'chief minister' in query.lower()):
-                return [
-                    "Current Info: Chandrababu Naidu (TDP) is the Chief Minister of Andhra Pradesh since June 2024",
-                    "Election Update: TDP defeated YSRCP in 2024 Andhra Pradesh assembly elections",
-                    "Previous CM: Jagan Mohan Reddy (YSRCP) served as CM from 2019-2024"
-                ]
+            # Check auto-updater political updates first
+            political_updates = current_context.get('political_updates', {})
             
-            # Add more states/political updates as needed
-            if 'telangana' in query.lower() and ('cm' in query.lower() or 'chief minister' in query.lower()):
-                return [
-                    "Current Info: A. Revanth Reddy (Congress) is the Chief Minister of Telangana since December 2023",
-                    "Election Update: Congress won Telangana assembly elections in November 2023",
-                    "Previous CM: K. Chandrashekar Rao (TRS/BRS) served as CM from 2014-2023"
-                ]
+            query_lower = query.lower()
+            if 'andhra pradesh' in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
+                if 'andhra pradesh_cm' in political_updates:
+                    update = political_updates['andhra pradesh_cm']
+                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                else:
+                    # Fallback to hard-coded info if auto-updater hasn't found recent updates
+                    current_info.append("Current Info: Chandrababu Naidu (TDP) is the Chief Minister of Andhra Pradesh since June 2024")
+                    current_info.append("Election Update: TDP defeated YSRCP in 2024 Andhra Pradesh assembly elections")
+            
+            elif 'telangana' in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
+                if 'telangana_cm' in political_updates:
+                    update = political_updates['telangana_cm']
+                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                else:
+                    # Fallback to hard-coded info
+                    current_info.append("Current Info: A. Revanth Reddy (Congress) is the Chief Minister of Telangana since December 2023")
+                    current_info.append("Election Update: Congress won Telangana assembly elections in November 2023")
+            
+            elif 'prime minister' in query_lower or ' pm ' in query_lower:
+                if 'prime_minister' in political_updates:
+                    update = political_updates['prime_minister']
+                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                else:
+                    current_info.append("Current PM: Narendra Modi (BJP) - verify for any recent changes")
         
-        # For non-political or unknown queries, return general guidance
-        return [
-            f"For current information about '{query}', verify with recent news sources",
-            "Check official government websites and trusted news outlets for latest updates",
-            "Political information changes frequently - always verify current office holders"
-        ]
+        # Add information about data freshness
+        if current_context.get('last_updated'):
+            last_updated = current_context['last_updated'][:10]  # Just date part
+            current_info.append(f"Data last updated: {last_updated} from {len(current_context.get('trusted_sources', []))} trusted sources")
+        
+        # For non-political or when no specific updates found
+        if len(current_info) <= 1:  # Only date info
+            current_info.extend([
+                f"For current information about '{query}', verify with recent news sources",
+                "Check official government websites and trusted news outlets for latest updates",
+                "Political information changes frequently - always verify current office holders"
+            ])
+        
+        return current_info
     
     except Exception as e:
-        print(f"Web search error: {e}")
+        print(f"Current info search error: {e}")
         return ["Unable to fetch current information - verify with recent reliable sources"]
 
 def misinformation_detector_and_explainer(text):
     if not text or text.strip() == "":
         return {"classification": "NoText", "explanation": "No explanation (empty input).", "score": 0, "tips": []}
 
+    # Get current context for enhanced AI analysis
+    current_context = load_current_context()
+    date_info = get_current_date_info()
+    
+    # Build dynamic context string
+    context_info = f"Today's Date: {date_info['current_date']} ({date_info['day_of_week']})"
+    if current_context.get('last_updated'):
+        context_info += f" | Last Data Update: {current_context['last_updated'][:10]}"
+    if current_context.get('trusted_sources'):
+        sources_count = len(current_context.get('trusted_sources', []))
+        context_info += f" | {sources_count} trusted sources monitored"
+    
     model = GenerativeModel(GEMINI_MODEL)
     prompt = f"""
 You are an expert fact-checking assistant with comprehensive knowledge across multiple domains. Your job is to provide accurate, detailed analysis of claims with special attention to current events and recent political changes.
 
+CURRENT CONTEXT:
+{context_info}
+
 CRITICAL CONTEXT FOR CURRENT CLAIMS:
 - ALWAYS verify political office holders against the most recent information
+- My knowledge cutoff is around April 2024, so I may not have information about very recent events
 - Indian Politics Update (2024): Chandrababu Naidu (TDP) is the current CM of Andhra Pradesh since June 2024, NOT Jagan Mohan Reddy
 - For any political claims about "current" office holders, double-check against recent election results
 - Pay special attention to time-sensitive information that may have changed recently
+- For claims about events after April 2024, acknowledge knowledge limitations and suggest verification
 
 ANALYSIS INSTRUCTIONS:
 1. Carefully examine the claim for factual accuracy, especially recent political changes
