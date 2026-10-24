@@ -900,10 +900,11 @@ def public_fact_check_endpoint():
 @rate_limited
 def correction_review_queue_endpoint():
     try:
-        from transparency_dashboard import get_transparency_metrics
-        metrics = get_transparency_metrics()
-        return jsonify({"queue": metrics.get("correction_queue", []),
-                        "note": "Use the existing correction submission workflow; review access requires the API key."})
+        from transparency_dashboard import list_human_corrections
+        status = request.args.get("status", "pending")
+        limit = request.args.get("limit", default=100, type=int)
+        return jsonify({"queue": list_human_corrections(status, limit),
+                        "note": "Queue entries are user-submitted reports, not verified corrections. Review each linked source before changing status."})
     except Exception:
         app.logger.exception("Correction review queue failed")
         return jsonify({"error": "server_error", "message": "Could not load correction queue."}), 500
