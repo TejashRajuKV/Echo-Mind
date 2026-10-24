@@ -144,7 +144,7 @@ def set_preferences(session_id: str, enabled: bool, retention_days: int = 90) ->
         clear_private_memory(session_id, preserve_preferences=True)
     return {"enabled": enabled, "retention_days": retention_days}
 
-def clear_private_memory(session_id: str, preserve_preferences: bool = False) -> int:
+def clear_private_memory(session_id: str, preserve_preferences: bool = True) -> int:
     conn = _conn()
     ids = [r["id"] for r in conn.execute("SELECT id FROM investigations WHERE session_id=?", (session_id,))]
     for inv_id in ids:
