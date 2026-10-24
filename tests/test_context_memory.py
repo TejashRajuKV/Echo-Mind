@@ -82,3 +82,25 @@ def test_similar_claims_do_not_automatically_become_evidence(monkeypatch, tmp_pa
     assert context["mode"] == "incremental"
     assert context["matches"]
     assert "not evidence" in context["guidance"]
+
+
+def test_explicit_cross_language_alias_matches_related_investigation(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    inv = memory.record_investigation("s", "Government scholarship for students", {
+        "classification": "Needs more evidence", "sources": []
+    })
+    memory.add_claim_alias("s", inv["id"], "ವಿದ್ಯಾರ್ಥಿಗಳಿಗೆ ಸರ್ಕಾರದ ವಿದ್ಯಾರ್ಥಿವೇತನ", "Kannada")
+    context = memory.prepare_context("s", "ವಿದ್ಯಾರ್ಥಿಗಳಿಗೆ ಸರ್ಕಾರದ ವಿದ್ಯಾರ್ಥಿವೇತನ")
+    assert any(item["relation"] == "cross_language_alias" for item in context["matches"])
+    assert "not evidence" in context["guidance"]
+
+
+def test_alias_cannot_be_added_to_another_users_investigation(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    inv = memory.record_investigation("owner", "Private investigation claim", {"classification": "Unknown"})
+    try:
+        memory.add_claim_alias("attacker", inv["id"], "A different language alias")
+    except LookupError:
+        pass
+    else:
+        raise AssertionError("cross-session alias write should be rejected")
