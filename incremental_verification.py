@@ -211,8 +211,30 @@ def detect_language(text):
         if re.search(r"[\u0980-\u09ff]",text): return "bn"
         return "unknown"
 
-def multilingual_match_candidates(claim, limit=10):
-    """Match same-script or explicit cross-language aliases; no machine translation is trusted as evidence."""
+def multilingual_match_candidates(session_id, claim, limit=10):
+    """Find candidate related investigations using optional Cloud Translation; candidates are not evidence."""
     from context_memory import related_investigations, find_alias_matches
-    # Only search the current session's private memory when caller supplies its session id.
-    return {"language":detect_language(claim),"note":"Automatic translation is not used to infer truth. Use verified aliases or translate then verify the original-language sources."}
+    language=detect_language(claim)
+    candidates=[]
+    candidates.extend(related_investigations(session_id, claim, limit))
+    candidates.extend(find_alias_matches(session_id, claim, limit))
+    translated=None
+    api_key=__import__("os").environ.get("GOOGLE_TRANSLATE_API_KEY")
+    if api_key and language not in ("en","unknown"):
+        try:
+            import requests
+            response=requests.post("https://translation.googleapis.com/language/translate/v2",
+                params={"key":api_key},json={"q":claim[:5000],"target":"en","format":"text"},timeout=5)
+            response.raise_for_status()
+            translated=response.json()["data"]["translations"][0]["translatedText"]
+            candidates.extend(related_investigations(session_id, translated, limit))
+        except Exception:
+            translated=None
+    unique={}
+    for item in candidates:
+        key=item.get("id") or item.get("investigation_id")
+        if key and key not in unique:
+            unique[key]=item
+    return {"language":language,"translated_query":translated,"translation_used":bool(translated),
+        "matches":list(unique.values())[:max(1,min(int(limit),20))],
+        "note":"Matches are investigation-navigation hints only. Translations can be wrong; verify the original claim against reliable sources in its original language."}
