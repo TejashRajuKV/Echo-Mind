@@ -255,6 +255,9 @@ def cache_analysis(claim: str, result: dict[str, Any]) -> None:
     safe_result.pop("gamification", None)
     safe_result.pop("personalization", None)
     sources = _safe_sources(result)
+    # Do not share guesses, empty-evidence outputs, or manually created workspace placeholders.
+    if not sources:
+        return
     conn = _conn()
     conn.execute("""INSERT INTO evidence_cache(fingerprint,claim,result_json,sources_json,created_at,expires_at,last_hit_at,hit_count)
       VALUES(?,?,?,?,?,?,NULL,0) ON CONFLICT(fingerprint) DO UPDATE SET claim=excluded.claim,
