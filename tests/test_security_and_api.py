@@ -93,3 +93,36 @@ def test_health_route_lists_monitor_notification_endpoint(client):
     response = client.get('/health')
     assert response.status_code == 200
     assert '/monitor/notifications' in response.get_json()['endpoints']
+
+def test_api_route_smoke_matrix(client, tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    import claim_monitor
+
+    monkeypatch.setattr(claim_monitor, 'MONITOR_DB_PATH', tmp_path / 'monitors.db')
+    monkeypatch.setattr(app_module, 'API_KEY', 'test-admin-key')
+    monkeypatch.setattr(app_module, 'analyze_claim', lambda *args, **kwargs: {
+        'classification': 'Suspicious', 'score': 40, 'explanation': 'Insufficient evidence',
+        'evidence_sources': [], 'personalization': {'category': 'general'},
+        'gamification': {'points': 10, 'badges': []},
+    })
+    sys.modules['claim_evolution'] = SimpleNamespace(get_claim_evolution_timeline=lambda claim: {'claim': claim, 'timeline': []})
+    sys.modules['document_analysis'] = SimpleNamespace(analyze_document_content=lambda text, title, verify_claims: {'verified_claims': [], 'total_passages': 1})
+    sys.modules['transparency_dashboard'] = SimpleNamespace(
+        get_transparency_metrics=lambda: {'status': 'ok'},
+        submit_human_correction=lambda **kwargs: {'status': 'received'},
+    )
+    sys.modules['database_helper'] = SimpleNamespace(get_database_stats=lambda: {'total_claims': 1})
+    headers = {'X-Session-ID': 'route-smoke-session-12345'}
+
+    assert client.get('/evolution', query_string={'claim': 'a claim'}).status_code == 200
+    assert client.post('/document/analyze', json={'text': 'A paragraph.', 'title': 'Doc'}).status_code == 200
+    assert client.post('/monitor/subscribe', json={'claim': 'monitored claim', 'verdict': 'Suspicious', 'score': 40, 'evidence_count': 0}, headers=headers).status_code == 200
+    assert client.get('/monitor/list', headers=headers).status_code == 200
+    assert client.get('/monitor/notifications', headers=headers).status_code == 200
+    assert client.get('/report', query_string={'claim': 'report claim'}).status_code == 200
+    assert client.get('/transparency').status_code == 200
+    assert client.post('/correction', json={'claim_text': 'claim', 'evidence_url': 'https://example.org/evidence', 'rationale': 'primary source'}).status_code == 200
+    assert client.get('/history', headers=headers).status_code == 200
+    assert client.get('/stats', headers={'X-API-Key': 'test-admin-key'}).status_code == 200
+    assert client.get('/health').status_code == 200
