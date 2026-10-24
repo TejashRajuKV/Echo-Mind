@@ -272,8 +272,36 @@ def analyze():
     current_points = session["points"]
     current_badges = json.loads(session["badges"])
 
+    # Memory is a continuity aid, not evidence. Exact fresh matches may reuse cached analysis.
     try:
-        result = analyze_claim(claim, current_points, current_badges)
+        from context_memory import prepare_context, record_investigation
+        context_snapshot = prepare_context(session_id, claim)
+    except Exception:
+        app.logger.exception("Context memory lookup failed; continuing with fresh analysis")
+        context_snapshot = {"mode": "fresh", "matches": [], "cache": None, "memory_enabled": False}
+
+    try:
+        cached = context_snapshot.get("cache")
+        if context_snapshot.get("mode") == "exact_cache" and cached and cached.get("fresh") and isinstance(cached.get("result"), dict):
+            result = dict(cached["result"])
+            result["cache_metadata"] = {
+                "hit": True, "age_seconds": cached.get("age_seconds"),
+                "created_at": cached.get("created_at"), "expires_at": cached.get("expires_at"),
+                "source_count": len(cached.get("sources", [])),
+                "note": "Exact-claim analysis reused while fresh; expired claims require revalidation."
+            }
+        else:
+            result = analyze_claim(claim, current_points, current_badges)
+            result["cache_metadata"] = {
+                "hit": False, "mode": context_snapshot.get("mode", "fresh"),
+                "related_investigations": [
+                    {"claim": item.get("claim"), "verdict": item.get("verdict"),
+                     "similarity": item.get("similarity"), "relation": item.get("relation"),
+                     "updated_at": item.get("updated_at")}
+                    for item in context_snapshot.get("matches", [])
+                ],
+                "note": "Related history is contextual only, not evidence; material differences require fresh verification."
+            }
     except Exception:
         app.logger.exception("Claim analysis failed")
         return jsonify({"error": "analysis_failed", "message": "Claim analysis failed. Please retry later."}), 503
@@ -289,6 +317,14 @@ def analyze():
     category   = result.get("personalization", {}).get("category", "general")
 
     update_session(session_id, new_points, new_badges, claim, verdict, score, category)
+
+    try:
+        from context_memory import record_investigation
+        investigation = record_investigation(session_id, claim, result, context_snapshot.get("matches", []))
+        result["investigation"] = investigation
+    except Exception:
+        app.logger.exception("Could not persist investigation memory")
+        result["investigation"] = {"saved": False}
 
     # Annotate with session metadata (never expose raw session_id to client)
     result["session"] = {
@@ -533,6 +569,180 @@ def health_check():
             "/health":              "GET  – Health check (public)",
         },
     })
+
+
+
+# ---------------------------------------------------------------------------
+# Context memory, incremental verification, and investigation workspace
+# ---------------------------------------------------------------------------
+@app.route("/context/prepare", methods=["POST"])
+@rate_limited
+def context_prepare_endpoint():
+    data = request.get_json(silent=True)
+    claim, err = _validate_claim(data)
+    if err:
+        return jsonify({"error": "bad_request", "message": err}), 400
+    try:
+        from context_memory import prepare_context
+        context = prepare_context(_derive_session_id(), claim)
+        if context.get("cache"):
+            context["cache"] = {k: v for k, v in context["cache"].items() if k != "result"}
+        return jsonify(context)
+    except Exception:
+        app.logger.exception("Context preparation failed")
+        return jsonify({"error": "server_error", "message": "Could not prepare investigation context."}), 500
+
+
+@app.route("/investigations", methods=["GET", "POST"])
+@rate_limited
+def investigations_endpoint():
+    from context_memory import list_investigations, record_investigation, related_investigations
+    session_id = _derive_session_id()
+    if request.method == "GET":
+        try:
+            return jsonify({"investigations": list_investigations(session_id, request.args.get("limit", default=20, type=int))})
+        except Exception:
+            app.logger.exception("Investigation listing failed")
+            return jsonify({"error": "server_error", "message": "Could not list investigations."}), 500
+    data = request.get_json(silent=True)
+    claim, err = _validate_claim(data)
+    if err:
+        return jsonify({"error": "bad_request", "message": err}), 400
+    try:
+        related = related_investigations(session_id, claim)
+        item = record_investigation(session_id, claim, {"classification": "Not yet verified", "score": None, "sources": []}, related)
+        return jsonify({"investigation": item, "related": related}), 201
+    except Exception:
+        app.logger.exception("Investigation creation failed")
+        return jsonify({"error": "server_error", "message": "Could not create investigation."}), 500
+
+
+@app.route("/investigations/<investigation_id>", methods=["GET", "DELETE"])
+@rate_limited
+def investigation_detail_endpoint(investigation_id):
+    from context_memory import get_investigation, delete_investigation
+    session_id = _derive_session_id()
+    item = get_investigation(session_id, investigation_id)
+    if not item:
+        return jsonify({"error": "not_found", "message": "Investigation not found."}), 404
+    if request.method == "DELETE":
+        delete_investigation(session_id, investigation_id)
+        return jsonify({"deleted": True, "id": investigation_id})
+    return jsonify({"investigation": item})
+
+
+@app.route("/investigations/<investigation_id>/events", methods=["POST"])
+@rate_limited
+def investigation_event_endpoint(investigation_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    event_type, payload = data.get("event_type", "note"), data.get("payload", {})
+    if not isinstance(event_type, str) or not isinstance(payload, dict) or len(json.dumps(payload, ensure_ascii=False)) > 10000:
+        return jsonify({"error": "bad_request", "message": "Invalid event type or payload."}), 400
+    try:
+        from context_memory import record_event
+        if not record_event(_derive_session_id(), investigation_id, event_type, payload):
+            return jsonify({"error": "not_found", "message": "Investigation not found."}), 404
+        return jsonify({"saved": True})
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Investigation event write failed")
+        return jsonify({"error": "server_error", "message": "Could not save investigation event."}), 500
+
+
+@app.route("/memory/preferences", methods=["GET", "POST"])
+@rate_limited
+def memory_preferences_endpoint():
+    from context_memory import get_preferences, set_preferences
+    session_id = _derive_session_id()
+    if request.method == "GET":
+        return jsonify(get_preferences(session_id))
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    try:
+        return jsonify(set_preferences(session_id, data.get("enabled", True), data.get("retention_days", 90)))
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+
+
+@app.route("/memory/clear", methods=["DELETE"])
+@rate_limited
+def memory_clear_endpoint():
+    from context_memory import clear_private_memory
+    return jsonify({"deleted_investigations": clear_private_memory(_derive_session_id())})
+
+
+@app.route("/context/cache/expired", methods=["GET"])
+@require_api_key
+@rate_limited
+def expired_context_cache_endpoint():
+    from context_memory import revalidation_candidates
+    limit = request.args.get("limit", default=100, type=int)
+    if limit < 1 or limit > 500:
+        return jsonify({"error": "bad_request", "message": "limit must be between 1 and 500."}), 400
+    try:
+        return jsonify({"expired": revalidation_candidates(limit), "note": "Expired entries are listed but retained until a revalidation worker processes them."})
+    except Exception:
+        app.logger.exception("Expired cache inspection failed")
+        return jsonify({"error": "server_error", "message": "Could not inspect expired cache."}), 500
+
+
+
+@app.route("/investigations/<investigation_id>/aliases", methods=["POST"])
+@rate_limited
+def investigation_alias_endpoint(investigation_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    alias, language = data.get("alias"), data.get("language")
+    if not isinstance(alias, str) or not alias.strip():
+        return jsonify({"error": "bad_request", "message": "'alias' must be a non-empty string."}), 400
+    if len(alias) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Alias is too long."}), 400
+    try:
+        from context_memory import add_claim_alias
+        item = add_claim_alias(_derive_session_id(), investigation_id, alias, language)
+        return jsonify({"alias": item, "note": "Alias links claims for investigation continuity; it is not evidence of truth."}), 201
+    except LookupError:
+        return jsonify({"error": "not_found", "message": "Investigation not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Claim alias registration failed")
+        return jsonify({"error": "server_error", "message": "Could not register claim alias."}), 500
+
+
+@app.route("/message/analyze", methods=["POST"])
+@rate_limited
+def forwarded_message_analysis_endpoint():
+    """Analyze pasted/forwarded text or OCR text supplied by a client-side OCR step."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    text_value = data.get("text", data.get("ocr_text", ""))
+    title = data.get("title", "Forwarded message")
+    if not isinstance(text_value, str) or not isinstance(title, str):
+        return jsonify({"error": "bad_request", "message": "text/ocr_text and title must be strings."}), 400
+    text_value, title = text_value.strip(), title.strip()[:200] or "Forwarded message"
+    if not text_value:
+        return jsonify({"error": "bad_request", "message": "Provide message text or OCR-extracted text."}), 400
+    if len(text_value) > 30000:
+        return jsonify({"error": "bad_request", "message": "Message text exceeds 30,000 characters."}), 400
+    try:
+        from document_analysis import analyze_document_content
+        result = analyze_document_content(text_value, title, verify_claims=True)
+        result["input_metadata"] = {
+            "kind": "forwarded_message_or_ocr_text",
+            "ocr_performed_by_server": False,
+            "note": "If this came from a screenshot, OCR text must be supplied by the client. Verify extracted text against the original image."
+        }
+        return jsonify(result)
+    except Exception:
+        app.logger.exception("Forwarded message analysis failed")
+        return jsonify({"error": "server_error", "message": "Message analysis failed."}), 500
 
 
 # ---------------------------------------------------------------------------

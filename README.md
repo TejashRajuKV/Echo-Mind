@@ -270,6 +270,34 @@ Set `MONITOR_INTERVAL_MINUTES` to the desired check interval (minimum 5 minutes)
 
 The `backend-tests.yml` workflow runs the pytest regression suite and Python compilation checks on pushes to the hardening branch and on pull requests. Tests cover report escaping, conservative verdict reconciliation, request validation, and anonymous session isolation. CI results must pass before merging; a green test suite does not substitute for live API-key, SMTP, or deployment smoke tests.
 
+
+## Context Memory and Incremental Verification
+
+Echo Mind now includes a privacy-aware investigation memory layer in `context_memory.py` backed by `context_memory.db`.
+
+- **Exact-claim cache:** reuses a source-backed analysis only while its cache entry is fresh. Claims with current/time-sensitive markers use a short 15-minute TTL; other claims use a 6-hour TTL. Expired entries are not returned as valid results and require revalidation.
+- **Related-claim context:** uses normalized token overlap to suggest related investigations. Similarity is a navigation aid only; a prior verdict is never treated as evidence for a new or materially changed claim.
+- **Investigation workspace:** saves session-scoped claims, verdict snapshots, event timelines, and links between related investigations.
+- **Cross-language alias links:** users or a translation step can explicitly attach a translated wording to an investigation. Alias matches help locate prior work but are not proof that two claims have the same meaning.
+- **Privacy controls:** investigation history is scoped to an anonymous session. Memory can be disabled, retention can be set from 1–365 days, and private history can be deleted. The shared exact-claim cache contains analysis output without session IDs or gamification state.
+- **Forwarded-message analysis:** accepts pasted text or client-provided OCR text. The API does not claim to perform OCR itself; screenshot OCR must be performed by a client-side or separately configured OCR component.
+
+### Context and workspace endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/context/prepare` | Find exact cache and related session investigations before analysis |
+| `GET/POST` | `/investigations` | List investigations or create an unverified workspace item |
+| `GET/DELETE` | `/investigations/<id>` | Read or delete an investigation owned by the current session |
+| `POST` | `/investigations/<id>/events` | Add a note, evidence event, or open/resolved question |
+| `POST` | `/investigations/<id>/aliases` | Attach a translated/paraphrased claim alias |
+| `GET/POST` | `/memory/preferences` | Read or configure memory enabled state and retention |
+| `DELETE` | `/memory/clear` | Delete private investigation history for the current session |
+| `POST` | `/message/analyze` | Analyze a pasted or OCR-extracted forwarded message |
+| `GET` | `/context/cache/expired` | Inspect expired cache entries for an administrator/scheduler; requires `X-API-Key` |
+
+The shared cache is a latency optimization, not a guarantee of current truth. Deployments should monitor cache age, revalidate time-sensitive claims, and configure the existing evidence providers. Session IDs are hashed before persistence, but the service is not a substitute for authenticated user accounts when strict identity or multi-device ownership is required.
+
 ## Deployment
 
 ### Google Cloud Run
