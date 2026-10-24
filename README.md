@@ -472,6 +472,8 @@ python -c "from incremental_verification import evaluate_claim_families; print(e
 
 The initial `data/claim_family_eval.jsonl` file is a **small curated smoke dataset**, not a production accuracy claim. Use independently labelled, representative examples with hard negatives, regional languages, dates, amounts, negation, entity substitutions and temporal updates before selecting similarity thresholds. Similarity is a candidate-retrieval hint, never evidence of truth.
 
+For follow-up latency experiments, prepare a separate JSONL file with independently human-labelled `claim` and `expected_verdict` fields, then run `python benchmark_followups.py your_labels.jsonl`. Add `--live` only when you intentionally want fresh provider-backed analyses (which may be slow and may incur API usage). The script reports context-lookup and live-analysis latency, and compares live verdicts with the supplied labels; it does not fabricate a quality score from unlabeled examples.
+
 ### Optional OCR and multilingual lookup
 
 - OCR uses Pillow and `pytesseract`; install the Tesseract system executable separately and configure it in the runtime PATH. If unavailable, `POST /message/ocr` returns an explicit unavailable response rather than pretending OCR succeeded.
