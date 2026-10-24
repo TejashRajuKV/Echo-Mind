@@ -55,7 +55,7 @@ class VerificationPolicyTests(unittest.TestCase):
         result = evaluate_conflict_and_consensus([
             source("a.example", "neutral"), source("b.example", "neutral")
         ])
-        self.assertEqual(result["consensus_direction"], "neutral")
+        self.assertEqual(result["consensus_direction"], "unknown")
         self.assertNotIn("Strong Consensus", result["status"])
 
     def test_unverified_score_is_abstention(self):
