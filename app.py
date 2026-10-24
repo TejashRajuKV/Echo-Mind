@@ -690,6 +690,61 @@ def expired_context_cache_endpoint():
         return jsonify({"error": "server_error", "message": "Could not inspect expired cache."}), 500
 
 
+
+@app.route("/investigations/<investigation_id>/aliases", methods=["POST"])
+@rate_limited
+def investigation_alias_endpoint(investigation_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    alias, language = data.get("alias"), data.get("language")
+    if not isinstance(alias, str) or not alias.strip():
+        return jsonify({"error": "bad_request", "message": "'alias' must be a non-empty string."}), 400
+    if len(alias) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Alias is too long."}), 400
+    try:
+        from context_memory import add_claim_alias
+        item = add_claim_alias(_derive_session_id(), investigation_id, alias, language)
+        return jsonify({"alias": item, "note": "Alias links claims for investigation continuity; it is not evidence of truth."}), 201
+    except LookupError:
+        return jsonify({"error": "not_found", "message": "Investigation not found."}), 404
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Claim alias registration failed")
+        return jsonify({"error": "server_error", "message": "Could not register claim alias."}), 500
+
+
+@app.route("/message/analyze", methods=["POST"])
+@rate_limited
+def forwarded_message_analysis_endpoint():
+    """Analyze pasted/forwarded text or OCR text supplied by a client-side OCR step."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    text_value = data.get("text", data.get("ocr_text", ""))
+    title = data.get("title", "Forwarded message")
+    if not isinstance(text_value, str) or not isinstance(title, str):
+        return jsonify({"error": "bad_request", "message": "text/ocr_text and title must be strings."}), 400
+    text_value, title = text_value.strip(), title.strip()[:200] or "Forwarded message"
+    if not text_value:
+        return jsonify({"error": "bad_request", "message": "Provide message text or OCR-extracted text."}), 400
+    if len(text_value) > 30000:
+        return jsonify({"error": "bad_request", "message": "Message text exceeds 30,000 characters."}), 400
+    try:
+        from document_analysis import analyze_document_content
+        result = analyze_document_content(text_value, title, verify_claims=True)
+        result["input_metadata"] = {
+            "kind": "forwarded_message_or_ocr_text",
+            "ocr_performed_by_server": False,
+            "note": "If this came from a screenshot, OCR text must be supplied by the client. Verify extracted text against the original image."
+        }
+        return jsonify(result)
+    except Exception:
+        app.logger.exception("Forwarded message analysis failed")
+        return jsonify({"error": "server_error", "message": "Message analysis failed."}), 500
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
