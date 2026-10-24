@@ -73,7 +73,7 @@ function sanitizeHtml(input) {
             } else if (['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
                 /^(javascript|vbscript|data):/.test(value)) {
                 node.removeAttribute(attr.name);
-            } else if (name === 'style' && /(expression\\s*\\(|url\\s*\\(\\s*['"]?\\s*(javascript|data):)/i.test(attr.value)) {
+            } else if (name === 'style' && /(expression\s*\\(|url\s*\\(\s*['"]?\s*(javascript|data):)/i.test(attr.value)) {
                 node.removeAttribute(attr.name);
             }
         });
@@ -670,6 +670,7 @@ function initializeDemoFunctionality() {
                             })
                         });
                         const res = await resp.json();
+                        if (!resp.ok) throw new Error(res.message || res.error || 'Subscription failed');
                         statusDiv.innerHTML = sanitizeHtml(`
                             <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.75rem; border-radius: 8px; font-size: 0.88rem;">
                                 <i class="fas fa-check-circle"></i> ${res.message || 'Subscribed successfully!'}
@@ -733,6 +734,7 @@ function initializeDemoFunctionality() {
                             body: JSON.stringify({ title: title, text: text })
                         });
                         const res = await resp.json();
+                        if (!resp.ok) throw new Error(res.message || res.error || 'Document analysis failed');
                         const verified = res.verified_claims || [];
                         resultsDiv.innerHTML = sanitizeHtml(`
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
