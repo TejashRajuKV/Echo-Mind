@@ -200,6 +200,13 @@ def related_investigations(session_id: str, claim: str, limit: int = 8) -> list[
 def prepare_context(session_id: str, claim: str) -> dict[str, Any]:
     prefs = get_preferences(session_id)
     matches = related_investigations(session_id, claim) if prefs.get("enabled", 1) else []
+    aliases = find_alias_matches(session_id, claim) if prefs.get("enabled", 1) else []
+    known_ids = {item.get("id") for item in matches}
+    for item in aliases:
+        item["id"] = item.get("investigation_id")
+        if item["id"] not in known_ids:
+            matches.append(item)
+            known_ids.add(item["id"])
     cache = get_cached_analysis(claim)
     return {
         "memory_enabled": bool(prefs.get("enabled", 1)),
