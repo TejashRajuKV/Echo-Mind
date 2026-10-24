@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "description": "Small deterministic regression set for verdict-policy tests. Labels are test expectations, not a comprehensive benchmark; replace or expand with independently reviewed, sourced claims before reporting model accuracy.",
+  "examples": [
+    {
+      "id": "no-evidence",
+      "claim": "A made-up claim with no evidence exists",
+      "expected_verdict": "Suspicious",
+      "expected_evidence_state": "insufficient",
+      "notes": "No retrieved evidence must never become a confident true/false result."
+    },
+    {
+      "id": "conflicting-evidence",
+      "claim": "The claim is contested by credible sources",
+      "expected_verdict": "Suspicious",
+      "expected_evidence_state": "conflicting",
+      "notes": "Material support/refute disagreement requires abstention/contested result."
+    },
+    {
+      "id": "single-source",
+      "claim": "A claim backed by one publisher",
+      "expected_verdict": "Suspicious",
+      "expected_evidence_state": "insufficient_independence",
+      "notes": "One publisher is not independent consensus."
+    },
+    {
+      "id": "multi-source-support",
+      "claim": "A claim supported by independent publishers",
+      "expected_verdict": "Trustworthy",
+      "expected_evidence_state": "corroborated",
+      "notes": "Only eligible when independent, relevant, direct evidence is present."
+    },
+    {
+      "id": "multi-source-refute",
+      "claim": "A claim refuted by independent publishers",
+      "expected_verdict": "False",
+      "expected_evidence_state": "corroborated_refutation",
+      "notes": "Only eligible when independent, relevant, direct evidence is present."
+    }
+  ]
+}
