@@ -167,3 +167,23 @@ if __name__ == "__main__":
     log_verification_telemetry("Test Claim", "Trustworthy", 90, 4, True, False, True, 210, "en")
     metrics = get_transparency_metrics()
     print("Transparency metrics:", metrics)
+
+
+def review_human_correction(correction_id: int, status: str, reviewer_note: str = "") -> Dict[str, Any]:
+    """Update a correction's review state; intended for an authenticated moderator endpoint."""
+    allowed = {"pending", "accepted", "rejected", "needs_more_evidence"}
+    if status not in allowed:
+        raise ValueError("unsupported review status")
+    if not isinstance(reviewer_note, str) or len(reviewer_note) > 4000:
+        raise ValueError("reviewer_note must be at most 4000 characters")
+    now = datetime.utcnow().isoformat() + "Z"
+    conn = _get_metrics_conn()
+    cur = conn.execute("UPDATE human_corrections SET status=?, reviewed_at=? WHERE id=?",
+                       (status, now, int(correction_id)))
+    conn.commit()
+    exists = cur.rowcount > 0
+    conn.close()
+    if not exists:
+        return {"updated": False, "correction_id": int(correction_id)}
+    return {"updated": True, "correction_id": int(correction_id), "status": status,
+            "reviewed_at": now, "reviewer_note_recorded": bool(reviewer_note.strip())}
