@@ -84,6 +84,13 @@ def _conn() -> sqlite3.Connection:
       session_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 1,
       retention_days INTEGER NOT NULL DEFAULT 90, updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS claim_aliases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, investigation_id TEXT NOT NULL,
+      session_id TEXT NOT NULL, alias_text TEXT NOT NULL, alias_fingerprint TEXT NOT NULL,
+      language TEXT, created_at TEXT NOT NULL,
+      UNIQUE(investigation_id, alias_fingerprint),
+      FOREIGN KEY(investigation_id) REFERENCES investigations(id) ON DELETE CASCADE
+    );
     """)
     return conn
 
@@ -316,6 +323,37 @@ def record_event(session_id: str, investigation_id: str, event_type: str, payloa
     conn.commit()
     conn.close()
     return True
+
+def add_claim_alias(session_id: str, investigation_id: str, alias_text: str, language: str | None = None) -> dict[str, Any]:
+    alias = normalize_claim(alias_text)
+    if len(alias) < 4:
+        raise ValueError("alias must contain at least 4 normalized characters")
+    if language is not None and (not isinstance(language, str) or len(language) > 40):
+        raise ValueError("language must be a string of at most 40 characters")
+    conn = _conn()
+    owner = conn.execute("SELECT 1 FROM investigations WHERE id=? AND session_id=?", (investigation_id, session_id)).fetchone()
+    if not owner:
+        conn.close()
+        raise LookupError("investigation not found")
+    conn.execute("""INSERT OR IGNORE INTO claim_aliases(investigation_id,session_id,alias_text,alias_fingerprint,language,created_at)
+      VALUES(?,?,?,?,?,?)""", (investigation_id, session_id, alias_text[:MAX_CLAIM_CHARS],
+      fingerprint(alias_text), language, _iso()))
+    conn.commit()
+    row = conn.execute("SELECT id,alias_text,language,created_at FROM claim_aliases WHERE investigation_id=? AND alias_fingerprint=?",
+                       (investigation_id, fingerprint(alias_text))).fetchone()
+    conn.close()
+    return dict(row) if row else {"saved": True}
+
+def find_alias_matches(session_id: str, claim: str, limit: int = 8) -> list[dict[str, Any]]:
+    key = fingerprint(claim)
+    conn = _conn()
+    rows = conn.execute("""SELECT a.investigation_id,a.alias_text,a.language,a.created_at,
+      i.claim,i.verdict,i.updated_at FROM claim_aliases a
+      JOIN investigations i ON i.id=a.investigation_id
+      WHERE a.session_id=? AND a.alias_fingerprint=? ORDER BY a.created_at DESC LIMIT ?""",
+      (session_id, key, max(1, min(int(limit), 20)))).fetchall()
+    conn.close()
+    return [{**dict(row), "relation": "cross_language_alias", "similarity": 1.0} for row in rows]
 
 def revalidation_candidates(limit: int = 100) -> list[dict[str, Any]]:
     """Return expired shared cache entries for an external scheduler; never silently refresh."""
