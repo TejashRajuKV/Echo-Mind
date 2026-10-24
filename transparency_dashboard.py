@@ -190,3 +190,19 @@ def review_human_correction(correction_id: int, status: str, reviewer_note: str 
         return {"updated": False, "correction_id": int(correction_id)}
     return {"updated": True, "correction_id": int(correction_id), "status": status,
             "reviewed_at": now, "reviewer_note_recorded": bool(reviewer_note.strip())}
+
+
+def list_human_corrections(status: str = "pending", limit: int = 100) -> List[Dict[str, Any]]:
+    """Return a bounded correction queue for an authenticated moderator."""
+    allowed = {"pending", "accepted", "rejected", "needs_more_evidence", "all"}
+    if status not in allowed:
+        raise ValueError("unsupported correction status")
+    conn = _get_metrics_conn()
+    if status == "all":
+        rows = conn.execute("SELECT id,claim_text,reported_verdict,suggested_verdict,evidence_url,rationale,status,submitted_at,reviewed_at,reviewer_note FROM human_corrections ORDER BY id DESC LIMIT ?",
+                            (max(1, min(int(limit), 200)),)).fetchall()
+    else:
+        rows = conn.execute("SELECT id,claim_text,reported_verdict,suggested_verdict,evidence_url,rationale,status,submitted_at,reviewed_at,reviewer_note FROM human_corrections WHERE status=? ORDER BY id DESC LIMIT ?",
+                            (status, max(1, min(int(limit), 200)))).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
