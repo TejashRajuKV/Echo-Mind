@@ -964,6 +964,36 @@ def multilingual_match_endpoint():
         app.logger.exception("Multilingual matching failed")
         return jsonify({"error": "server_error", "message": "Could not find related investigations."}), 500
 
+
+@app.route("/review/corrections/<int:correction_id>", methods=["POST"])
+@require_api_key
+@rate_limited
+def correction_review_update_endpoint(correction_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("status"), str):
+        return jsonify({"error": "bad_request", "message": "status is required."}), 400
+    note = data.get("reviewer_note", "")
+    if not isinstance(note, str):
+        return jsonify({"error": "bad_request", "message": "reviewer_note must be a string."}), 400
+    try:
+        from transparency_dashboard import review_human_correction
+        result = review_human_correction(correction_id, data["status"], note)
+        return (jsonify(result), 200) if result["updated"] else (jsonify({"error": "not_found", "message": "Correction not found."}), 404)
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Correction review update failed")
+        return jsonify({"error": "server_error", "message": "Could not update correction review."}), 500
+
+
+@app.route("/notifications/<int:notification_id>/read", methods=["POST"])
+@rate_limited
+def notification_mark_read_endpoint(notification_id):
+    from notification_store import mark_read
+    if not mark_read(_derive_session_id(), notification_id):
+        return jsonify({"error": "not_found", "message": "Notification not found."}), 404
+    return jsonify({"read": True, "id": notification_id})
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
