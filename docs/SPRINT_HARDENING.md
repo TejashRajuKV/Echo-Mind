@@ -15,12 +15,15 @@
 
 ```bash
 python -m pip install flask flask-cors python-dotenv requests schedule
+npm install --no-save @playwright/test
+npx playwright install --with-deps chromium
+npx playwright test
 node --check script.js
 python -m compileall -q app.py analysis_engine.py evidence_engine.py verification_engine.py verdict_policy.py shareable_report.py claim_monitor.py monitor_worker.py
 python -m unittest discover -s tests -v
 ```
 
-The tests intentionally do not call live search APIs, Vertex AI, Gemini, or SMTP. They verify deterministic policy and API behavior only. They are not a substitute for a separately run live integration test with configured API credentials.
+The Python tests intentionally do not call live search APIs, Vertex AI, Gemini, or SMTP. The Playwright browser suite intercepts API calls and exercises the claim-analysis, evolution, monitoring subscription, report-opening, document-scan, transparency, and correction UI flows without external services. Neither suite substitutes for a separately run live integration test with configured API credentials.
 
 ## Enable scheduled monitoring
 
