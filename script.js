@@ -73,7 +73,7 @@ function sanitizeHtml(input) {
             } else if (['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
                 /^(javascript|vbscript|data):/.test(value)) {
                 node.removeAttribute(attr.name);
-            } else if (name === 'style' && /(expression\s*\\(|url\s*\\(\s*['"]?\s*(javascript|data):)/i.test(attr.value)) {
+            } else if (name === 'style' && /(expression\s*\(|url\s*\(\s*['"]?\s*(javascript|data):)/i.test(attr.value)) {
                 node.removeAttribute(attr.name);
             }
         });
