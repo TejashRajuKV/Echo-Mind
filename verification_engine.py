@@ -153,9 +153,12 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
     consensus_dir = "neutral"
     consensus_pct = 0.0
 
-    # Do not call a one-publisher result a consensus, regardless of its authority score.
+    # Directional consensus requires at least two independent publishers taking
+    # the same non-neutral position. Neutral topical coverage cannot "vote" a
+    # claim true or false, and multiple URLs from one domain remain one publisher.
     independent_count = len(support_publishers | refute_publishers | neutral_publishers)
-    if independent_count < 2:
+    directional_publishers = len(support_publishers | refute_publishers)
+    if independent_count < 2 or directional_publishers < 2:
         return {
             "status": "Unverified / Insufficient Independent Evidence",
             "conflict_detected": False,
@@ -168,7 +171,7 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
             "neutral_sources_count": len(neutral_publishers),
             "echo_chamber_detected": echo_count > 0,
             "independent_publisher_count": independent_count,
-            "detail": "Fewer than two distinct publishers were found. Treat this result as unverified, not as consensus.",
+            "detail": "Fewer than two independent publishers with directional evidence were found. Treat this result as unverified, not as consensus.",
         }
 
     # Evaluate conflict threshold:
