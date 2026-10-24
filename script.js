@@ -60,6 +60,27 @@ function initializeSmoothScroll() {
     });
 }
 
+// Sanitize every HTML string before inserting API/user-controlled values into the DOM.
+function sanitizeHtml(input) {
+    const parsed = new DOMParser().parseFromString(String(input == null ? '' : input), 'text/html');
+    parsed.querySelectorAll('script,iframe,object,embed,base,meta,link,svg,math').forEach(node => node.remove());
+    parsed.body.querySelectorAll('*').forEach(node => {
+        Array.from(node.attributes).forEach(attr => {
+            const name = attr.name.toLowerCase();
+            const value = attr.value.trim().toLowerCase();
+            if (name.startsWith('on') || name === 'srcdoc') {
+                node.removeAttribute(attr.name);
+            } else if (['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
+                /^(javascript|vbscript|data):/.test(value)) {
+                node.removeAttribute(attr.name);
+            } else if (name === 'style' && /(expression\s*\\(|url\s*\\(\s*['"]?\s*(javascript|data):)/i.test(attr.value)) {
+                node.removeAttribute(attr.name);
+            }
+        });
+    });
+    return parsed.body.innerHTML;
+}
+
 function initializeDemoFunctionality() {
     const claimInput = document.getElementById('claimInput');
     const checkClaimBtn = document.getElementById('checkClaim');
@@ -521,12 +542,12 @@ function initializeDemoFunctionality() {
 
             const data = await response.json();
             console.log('Analysis result received:', data);
-            demoOutput.innerHTML = displayAnalysisResult(data);
+            demoOutput.innerHTML = sanitizeHtml(displayAnalysisResult(data));
             bindActionToolbarEvents(data, claim);
 
         } catch (error) {
             console.error('Fetch Error:', error);
-            demoOutput.innerHTML = displayError(error.message);
+            demoOutput.innerHTML = sanitizeHtml(displayError(error.message));
         }
     });
 
@@ -548,13 +569,13 @@ function initializeDemoFunctionality() {
         const modal = document.createElement('div');
         modal.id = 'echoModalBackdrop';
         modal.className = 'echo-modal-backdrop';
-        modal.innerHTML = `
+        modal.innerHTML = sanitizeHtml(`
             <div class="echo-modal-box">
                 <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
                 <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #1e293b;">${title}</h3>
                 <div>${contentHtml}</div>
             </div>
-        `;
+        `);
         document.body.appendChild(modal);
 
         modal.querySelector('#modalCloseBtn').addEventListener('click', closeModal);
@@ -649,13 +670,14 @@ function initializeDemoFunctionality() {
                             })
                         });
                         const res = await resp.json();
-                        statusDiv.innerHTML = `
+                        if (!resp.ok) throw new Error(res.message || res.error || 'Subscription failed');
+                        statusDiv.innerHTML = sanitizeHtml(`
                             <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.75rem; border-radius: 8px; font-size: 0.88rem;">
                                 <i class="fas fa-check-circle"></i> ${res.message || 'Subscribed successfully!'}
                             </div>
-                        `;
+                        `);
                     } catch (err) {
-                        statusDiv.innerHTML = `<div style="color: #e11d48;">Subscription error: ${err.message}</div>`;
+                        statusDiv.innerHTML = sanitizeHtml(`<div style="color: #e11d48;">Subscription error: ${err.message}</div>`);
                     }
                 });
             });
@@ -712,8 +734,9 @@ function initializeDemoFunctionality() {
                             body: JSON.stringify({ title: title, text: text })
                         });
                         const res = await resp.json();
+                        if (!resp.ok) throw new Error(res.message || res.error || 'Document analysis failed');
                         const verified = res.verified_claims || [];
-                        resultsDiv.innerHTML = `
+                        resultsDiv.innerHTML = sanitizeHtml(`
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                     <strong>Document Integrity Score:</strong>
@@ -736,9 +759,9 @@ function initializeDemoFunctionality() {
                                     </div>
                                 `).join('')}
                             </div>
-                        `;
+                        `);
                     } catch (err) {
-                        resultsDiv.innerHTML = `<div style="color: #e11d48;">Scan error: ${err.message}</div>`;
+                        resultsDiv.innerHTML = sanitizeHtml(`<div style="color: #e11d48;">Scan error: ${err.message}</div>`);
                     }
                 });
             });
@@ -850,13 +873,13 @@ function initializeDemoFunctionality() {
                             })
                         });
                         const res = await resp.json();
-                        statusDiv.innerHTML = `
+                        statusDiv.innerHTML = sanitizeHtml(`
                             <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.75rem; border-radius: 8px; font-size: 0.88rem;">
                                 <i class="fas fa-check-circle"></i> ${res.message || 'Correction received into audit queue!'}
                             </div>
-                        `;
+                        `);
                     } catch (err) {
-                        statusDiv.innerHTML = `<div style="color: #e11d48;">Error: ${err.message}</div>`;
+                        statusDiv.innerHTML = sanitizeHtml(`<div style="color: #e11d48;">Error: ${err.message}</div>`);
                     }
                 });
             });

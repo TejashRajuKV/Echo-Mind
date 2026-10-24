@@ -127,7 +127,7 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
         # Authority factor 0.3 to 1.0
         weight = max(0.3, auth / 100.0)
         stance = s.get("stance", "neutral")
-        pub = s.get("publisher", "Unknown")
+        pub = str(s.get("domain") or s.get("publisher") or "unknown").strip().casefold()
         cid = s.get("cluster_id", "standalone")
 
         if s.get("is_echo_chamber", False):
@@ -152,6 +152,24 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
     status = "Unverified"
     consensus_dir = "neutral"
     consensus_pct = 0.0
+
+    # Do not call a one-publisher result a consensus, regardless of its authority score.
+    independent_count = len(support_publishers | refute_publishers | neutral_publishers)
+    if independent_count < 2:
+        return {
+            "status": "Unverified / Insufficient Independent Evidence",
+            "conflict_detected": False,
+            "consensus_direction": "unknown",
+            "consensus_percentage": 0.0,
+            "weighted_support": round(weighted_support, 2),
+            "weighted_refute": round(weighted_refute, 2),
+            "supporting_sources_count": len(support_publishers),
+            "refuting_sources_count": len(refute_publishers),
+            "neutral_sources_count": len(neutral_publishers),
+            "echo_chamber_detected": echo_count > 0,
+            "independent_publisher_count": independent_count,
+            "detail": "Fewer than two distinct publishers were found. Treat this result as unverified, not as consensus.",
+        }
 
     # Evaluate conflict threshold:
     # If both support and refute have substantial weight

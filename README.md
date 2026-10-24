@@ -14,9 +14,9 @@
 
 ## Overview
 
-Echo Mind is a production-grade AI fact-checking platform that **retrieves and audits evidence first, then reasons over it** — rather than relying on the model's own knowledge alone. Every verdict is backed by an auditable evidence trail with source titles, publisher names, publication dates, and direct URLs.
+Echo Mind is an evidence-first fact-checking prototype that **retrieves and audits evidence before model reasoning**. Evidence coverage depends on available API credentials, local data, and network access; source stance and authority signals are heuristic and every result needs human review.
 
-The system runs on Google Vertex AI (Gemini 2.5 Pro) with a deterministic fallback pipeline when Vertex AI is unavailable, so it works fully offline or in local development.
+The system can use Google Vertex AI (Gemini) when configured and has fallback paths for some failures. Full offline capability is not guaranteed because several retrieval connectors depend on external services.
 
 ---
 
@@ -40,7 +40,7 @@ The system runs on Google Vertex AI (Gemini 2.5 Pro) with a deterministic fallba
 | **Claim Evolution Tracker** | Links repeated mutations of the same claim across time, tracking wording changes, evidence accumulation, and verdict drift. Stored in `claim_evolution.db`. |
 | **Indian-Language Verification** | Native script detection for Kannada, Hindi, Tamil, Telugu, and Bengali. Preserves original vernacular wording and queries regional trusted publishers (Prajavani, Vijayavani, Dainik Jagran, Amar Ujala, Eenadu, Dinamalar, Anandabazar Patrika). |
 | **Research Document Analysis** | Paste any official notice, circular, research paper, or court order. The engine chunks paragraphs, extracts factual claims, and traces each to an estimated page and exact passage. |
-| **Opt-In Claim Monitoring** | Subscribe to follow any claim. Alerts are stored in `claim_monitors.db` and triggered when significant new evidence or a verdict correction emerges. |
+| **Opt-In Claim Monitoring** | Store subscriptions and in-app alerts in SQLite. A separate worker must be running for scheduled checks; email delivery also requires SMTP configuration. |
 | **Shareable Evidence Reports** | Generates a standalone HTML evidence report with full citations, verification date, methodology, and limitations. Includes Google **ClaimReview** Schema.org JSON-LD structured data for search engine eligibility. |
 | **Quality & Transparency Dashboard** | Real-time telemetry: citation coverage %, retrieval success %, unresolved conflict %, average latency, benchmark accuracy, and open human correction queue. |
 
@@ -248,13 +248,27 @@ The original vernacular wording is preserved in all analysis and reports to avoi
 |---|---|
 | API Keys | Stored in `.env` only -- never in source code |
 | CORS | Restricted to `ALLOWED_ORIGINS` env var (not `*`) |
-| Rate Limiting | Per-session in-process limiter (configurable via `MAX_REQUESTS_PER_HOUR`) |
+| Rate Limiting | In-process per-IP limiter (configurable via `MAX_REQUESTS_PER_HOUR`); use a shared gateway/store for multi-worker production deployments |
 | Session Isolation | Gamification state and history are scoped per session -- not shared globally |
 | Fact-Check Isolation | User analysis logs stored in `analysis_logs` table, separate from the authoritative `fact_checks` table, to prevent circular self-reference contamination |
 | Debug Mode | `FLASK_DEBUG=false` enforced in production |
 | Input Validation | Claim length capped at `MAX_CLAIM_LENGTH` with type-checked JSON body parsing |
 
 ---
+
+## Claim-monitor worker and notifications
+
+The API stores monitor subscriptions but does not itself run a durable scheduler. Run the worker as a separate long-lived process or service:
+
+```bash
+python monitor_worker.py
+```
+
+Set `MONITOR_INTERVAL_MINUTES` to the desired check interval (minimum 5 minutes). For optional email alerts, configure SMTP host, port, username, password, and sender environment variables. If SMTP is not configured, in-app notifications remain available from `GET /monitor/notifications`; email alerts are not sent. On Cloud Run, deploy the worker separately from the request-serving service so scale-to-zero does not silently stop scheduled checks.
+
+## Automated tests
+
+The `backend-tests.yml` workflow runs the pytest regression suite and Python compilation checks on pushes to the hardening branch and on pull requests. Tests cover report escaping, conservative verdict reconciliation, request validation, and anonymous session isolation. CI results must pass before merging; a green test suite does not substitute for live API-key, SMTP, or deployment smoke tests.
 
 ## Deployment
 

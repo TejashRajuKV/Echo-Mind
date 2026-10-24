@@ -10,7 +10,6 @@ google-auth>=2.16.0
 # Data processing and storage
 numpy>=1.24.0
 pandas>=2.0.0
-sqlite3  # Built-in Python module
 feedparser>=6.0.10
 requests>=2.28.0
 
@@ -52,7 +51,6 @@ httpx>=0.24.0
 
 # Async support
 aiohttp>=3.8.0
-asyncio  # Built-in Python module
 
 # Text similarity and NLP
 sentence-transformers>=2.2.0  # Alternative embedding model

@@ -704,22 +704,33 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
     # Step 3: Model reasoning grounded in the verified evidence
     model_analysis = misinformation_detector_and_explainer(text, evidence_data, verification_data)
 
-    # Reconcile model verdict with deterministic evidence metrics
+    # Evidence-first reconciliation: the language model may explain evidence but cannot
+    # overrule conflict or manufacture a decisive verdict from a single publisher.
     cred = verification_data.get("credibility", {})
     cons = verification_data.get("consensus", {})
-    
-    verdict = model_analysis.get("classification")
-    if not verdict or verdict in ["Error", "NoText", "N/A"]:
-        verdict = cred.get("verdict", "Suspicious")
+    try:
+        from verdict_policy import reconcile_verdict
+        verdict, reconciliation_reason = reconcile_verdict(
+            model_analysis.get("classification", "Unknown"),
+            cons,
+            evidence_data.get("sources", []),
+        )
+    except Exception:
+        verdict = "Suspicious"
+        reconciliation_reason = "Evidence reconciliation failed closed; manual review is recommended."
 
-    # Score: if model gave valid non-zero score, blend with multi-factor evidence score
     model_score = model_analysis.get("score")
-    if isinstance(model_score, (int, float)) and model_score > 0:
+    if isinstance(model_score, (int, float)) and not isinstance(model_score, bool) and model_score >= 0:
         score = int(round((model_score * 0.4) + (cred.get("score", 50) * 0.6)))
     else:
-        score = cred.get("score", 50)
+        score = int(cred.get("score", 50))
+    if verdict == "Suspicious":
+        score = min(score, 49)
+    score = max(0, min(100, score))
 
-    explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on multi-source evidence.")
+    explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on retrieved evidence.")
+    if verdict == "Suspicious":
+        explanation = reconciliation_reason + "\\n\\n" + str(explanation)
     tips = educational_insights()
     model_tips = model_analysis.get("tips", [])
     all_tips = sorted(list(set(tips + model_tips)))

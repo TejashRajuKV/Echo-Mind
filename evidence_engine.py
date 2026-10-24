@@ -560,7 +560,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         rep = sorted_items[0]
         echo_count = len(sorted_items) - 1
         rep["echo_count"] = echo_count
-        rep["is_echo_chamber"] = echo_count >= 2
+        rep["is_echo_chamber"] = echo_count >= 1
         deduped_sources.append(rep)
 
     deduped_sources.sort(key=lambda x: x.get("authority_score", 0), reverse=True)
