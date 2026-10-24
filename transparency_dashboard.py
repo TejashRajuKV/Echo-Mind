@@ -47,6 +47,9 @@ def _get_metrics_conn():
             reviewed_at TEXT
         )
     """)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(human_corrections)").fetchall()}
+    if "reviewer_note" not in columns:
+        conn.execute("ALTER TABLE human_corrections ADD COLUMN reviewer_note TEXT NOT NULL DEFAULT ''")
     conn.commit()
     return conn
 
@@ -178,8 +181,8 @@ def review_human_correction(correction_id: int, status: str, reviewer_note: str 
         raise ValueError("reviewer_note must be at most 4000 characters")
     now = datetime.utcnow().isoformat() + "Z"
     conn = _get_metrics_conn()
-    cur = conn.execute("UPDATE human_corrections SET status=?, reviewed_at=? WHERE id=?",
-                       (status, now, int(correction_id)))
+    cur = conn.execute("UPDATE human_corrections SET status=?, reviewed_at=?, reviewer_note=? WHERE id=?",
+                       (status, now, reviewer_note.strip(), int(correction_id)))
     conn.commit()
     exists = cur.rowcount > 0
     conn.close()
