@@ -935,6 +935,18 @@ def notification_create_endpoint():
         return jsonify({"error": "bad_request", "message": str(exc)}), 400
 
 
+
+@app.route("/claim-family/compare", methods=["POST"])
+@rate_limited
+def claim_family_compare_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("claim_a"), str) or not isinstance(data.get("claim_b"), str):
+        return jsonify({"error": "bad_request", "message": "claim_a and claim_b must be strings."}), 400
+    if not data["claim_a"].strip() or not data["claim_b"].strip() or max(len(data["claim_a"]), len(data["claim_b"])) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Claims must be non-empty and within the length limit."}), 400
+    from incremental_verification import claim_family_similarity
+    return jsonify(claim_family_similarity(data["claim_a"], data["claim_b"]))
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
