@@ -80,6 +80,7 @@ User Browser
 | `claim_evolution.db` | Claim variant clusters and mutation timelines |
 | `claim_monitors.db` | Active opt-in monitor subscriptions and update records |
 | `transparency_metrics.db` | Runtime telemetry and human correction queue |
+| `context_memory.db` | Session-scoped investigations, related-claim links, explicit translated aliases, and source-backed cache entries with expiry |
 
 ---
 
@@ -100,6 +101,15 @@ All endpoints are served by `app.py` on port `8080`.
 | `GET` | `/history` | Session | Caller's recent claim history (last 20) |
 | `GET` | `/stats` | API Key | Database statistics (admin) |
 | `GET` | `/health` | -- | Service health check |
+| `POST` | `/context/prepare` | Session | Exact-cache and related-investigation context; cache metadata only |
+| `GET/POST` | `/investigations` | Session | List investigations or create an unverified workspace item |
+| `GET/DELETE` | `/investigations/<id>` | Session | Read or delete an investigation owned by the current session |
+| `POST` | `/investigations/<id>/events` | Session | Add a private note or investigation event |
+| `POST` | `/investigations/<id>/aliases` | Session | Link an explicitly supplied translated/paraphrased claim |
+| `GET/POST` | `/memory/preferences` | Session | Configure memory opt-out and retention |
+| `DELETE` | `/memory/clear` | Session | Delete private investigation history |
+| `POST` | `/message/analyze` | Session | Analyze pasted or client-provided OCR text from a forwarded message |
+| `GET` | `/context/cache/expired` | API Key | Inspect expired cache entries for an external revalidation worker |
 
 ---
 
@@ -113,6 +123,7 @@ Echo Mind/
 |
 +-- app.py                      # Flask server -- all 11 routes
 +-- analysis_engine.py          # Orchestrator -- evidence pipeline + Vertex AI
++-- context_memory.py           # Privacy-aware investigation memory + source-backed evidence cache
 |
 +-- evidence_engine.py          # Google Fact Check API + FreeNewsAPI + DB connector
 +-- verification_engine.py      # Atomic sub-claim decomposition + consensus scoring
@@ -297,6 +308,55 @@ Echo Mind now includes a privacy-aware investigation memory layer in `context_me
 | `GET` | `/context/cache/expired` | Inspect expired cache entries for an administrator/scheduler; requires `X-API-Key` |
 
 The shared cache is a latency optimization, not a guarantee of current truth. Deployments should monitor cache age, revalidate time-sensitive claims, and configure the existing evidence providers. Session IDs are hashed before persistence, but the service is not a substitute for authenticated user accounts when strict identity or multi-device ownership is required.
+
+## Product Roadmap: Recommended Next Features
+
+The following are **proposed next steps**, not claims that these features are already implemented. Priorities favour accuracy, measurable user value, and safe incremental delivery.
+
+### P0 — Make incremental verification dependable
+
+| Feature | What it should do | Acceptance criteria |
+|---|---|---|
+| **Automatic cache revalidation worker** | Process expired evidence-cache entries, re-fetch current sources, compare evidence and verdicts, and append a revalidation event instead of silently replacing history. | Worker is idempotent, records provider failures, and emits a before/after diff only when evidence or classification materially changes. |
+| **Claim-family and entity matching** | Group wording variants around the same people, scheme, place, event, and factual assertion. Treat changed amounts, dates, eligibility, or locations as material differences. | Precision/recall are measured on a labelled set; uncertain matches are suggestions, not automatic verdict inheritance. |
+| **Evidence provenance graph** | Link each subclaim to source passages, publication/update dates, publisher ownership or syndication groups, stance, and the reasoning step it supports. | Every decisive conclusion can be traced to source evidence; syndicated copies do not count as independent corroboration. |
+| **Evidence freshness and change alerts** | Detect expired, corrected, removed, or materially updated sources and notify opted-in users when a saved investigation may need review. | Alerts cite the changed source and explain why the previous assessment may be stale; delivery failures are retried and observable. |
+| **Evaluation and latency dashboard** | Benchmark verdict quality, citation coverage, source independence, abstention, cache hit rate, median/p95 latency, and verdict changes. | Metrics use labelled examples and report dataset size; speed improvements never hide stale evidence or reduce evidence requirements. |
+
+### P1 — Improve the investigation experience
+
+| Feature | What it should do | Guardrail |
+|---|---|---|
+| **Screenshot and forwarded-message checker** | Accept image uploads, run OCR, show extracted text for correction, identify separate claims and suspicious URLs, and verify each claim. | OCR uncertainty is visible; extracted text is not assumed accurate and image context is preserved. |
+| **Automatic multilingual claim matching** | Match equivalent claims across English, Kannada, Hindi, Tamil, Telugu, Bengali, and other supported languages; search relevant regional sources. | Translation confidence and original wording are retained; aliases help retrieval but are never treated as proof of equivalence. |
+| **Visual investigation workspace** | Present claim families, evidence cards, contradictions, timeline, open questions, and verdict history in one interface. | Private notes and history remain session/user-scoped; source citations are visible and exportable. |
+| **Conflict explainer** | Explain whether sources disagree about the same fact or differ by date, definition, jurisdiction, or population. Highlight missing primary evidence. | The system may return “unresolved” instead of forcing consensus. |
+| **Correction and review workflow** | Let users submit a correction with evidence, route it for review, and show whether it was accepted, rejected, or remains pending. | User votes and popularity never directly determine factual truth; review decisions are auditable. |
+
+### P2 — Reach more users responsibly
+
+- **Browser extension and share-sheet integration:** send a selected quote, URL, or forwarded message to Echo Mind and return a cited, compact result.
+- **Claim-aware reading mode:** explain source quality, common reasoning traps, and how to verify the claim independently without lecturing the user.
+- **Public, versioned fact-check pages:** show current assessment, dated evidence snapshots, correction history, and downloadable citations.
+- **Community rumour trends:** aggregate privacy-preserving claim-family counts by time and region without exposing private conversation histories or identifying individual users.
+- **Accessible voice and low-bandwidth mode:** support spoken claims, screen-reader-friendly evidence cards, and lightweight results for slower connections.
+
+### Memory, privacy, and performance principles
+
+1. **Separate three kinds of data:** private conversation/investigation history; shared, source-backed evidence cache; and public verification records. Never publish private notes by default.
+2. **Use cache tiers:** exact, fresh matches may return quickly with their verification timestamp; related claims may reuse candidate sources but must re-check material differences; new or time-sensitive claims need fresh retrieval.
+3. **Do not let user context become evidence:** prior messages help resolve references and intent, but claims from the user or old model outputs are not independent sources.
+4. **Make retention and deletion meaningful:** document what is deleted, what remains in shared/public caches, and how retention works across backups and deployed instances.
+5. **Measure accuracy before claiming improvement:** maintain a human-labelled, time-aware evaluation set with false-positive/false-negative analysis, language breakdowns, and abstention rates.
+6. **Plan for production concurrency:** SQLite is suitable for a local/single-instance deployment; evaluate a shared transactional store and authenticated identities before relying on multi-instance writes or cross-device history.
+
+### Suggested delivery order
+
+1. Finish the expired-cache revalidation worker and verdict-diff timeline.
+2. Build a labelled claim-family evaluation set, then improve entity/semantic matching against it.
+3. Add the evidence provenance graph and expose its traceability in the investigation UI.
+4. Connect screenshot OCR and multilingual matching only after the claim-extraction and evaluation paths are testable.
+5. Use latency and quality metrics to prove the follow-up experience is faster without sacrificing freshness or citation quality.
 
 ## Deployment
 
