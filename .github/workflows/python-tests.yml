@@ -35,7 +35,7 @@ jobs:
       - name: Run frontend end-to-end tests
         run: npx playwright test
       - name: Compile Python modules
-        run: python -m compileall -q app.py analysis_engine.py evidence_engine.py verification_engine.py verdict_policy.py shareable_report.py claim_monitor.py monitor_worker.py context_memory.py incremental_verification.py ocr_support.py notification_store.py benchmark_followups.py transparency_dashboard.py
+        run: python -m compileall -q app.py analysis_engine.py evidence_engine.py verification_engine.py verdict_policy.py shareable_report.py claim_monitor.py monitor_worker.py context_memory.py incremental_verification.py ocr_support.py notification_store.py benchmark_followups.py transparency_dashboard.py revalidation_worker.py
       - name: Run pytest regression suite
         env:
           FLASK_DEBUG: "false"
