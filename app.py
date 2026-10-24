@@ -29,8 +29,8 @@ API_KEY = os.environ.get("ECHO_MIND_API_KEY")
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
-MAX_REQUESTS_PER_HOUR = int(os.environ.get("MAX_REQUESTS_PER_HOUR", 100))
-MAX_CLAIM_LENGTH      = int(os.environ.get("MAX_CLAIM_LENGTH", 2000))
+MAX_REQUESTS_PER_HOUR = max(1, int(os.environ.get("MAX_REQUESTS_PER_HOUR", 100)))
+MAX_CLAIM_LENGTH      = max(1, int(os.environ.get("MAX_CLAIM_LENGTH", 2000)))
 DEBUG_MODE            = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 # Never permit the interactive debugger in managed/explicit production deployments.
 if os.environ.get("K_SERVICE") or os.environ.get("FLASK_ENV", "").lower() == "production":
@@ -248,7 +248,14 @@ def analyze():
     current_points = session["points"]
     current_badges = json.loads(session["badges"])
 
-    result = analyze_claim(claim, current_points, current_badges)
+    try:
+        result = analyze_claim(claim, current_points, current_badges)
+    except Exception:
+        app.logger.exception("Claim analysis failed")
+        return jsonify({"error": "analysis_failed", "message": "Claim analysis failed. Please retry later."}), 503
+    if not isinstance(result, dict):
+        app.logger.error("Analysis engine returned a non-object result")
+        return jsonify({"error": "analysis_failed", "message": "Analysis returned an invalid result."}), 503
 
     # Persist updated state
     new_points = result.get("gamification", {}).get("points", current_points)
@@ -279,8 +286,9 @@ def claim_evolution_endpoint():
     try:
         from claim_evolution import get_claim_evolution_timeline
         return jsonify(get_claim_evolution_timeline(claim))
-    except Exception as exc:
-        return jsonify({"error": "server_error", "message": str(exc)}), 500
+    except Exception:
+        app.logger.exception("Claim evolution lookup failed")
+        return jsonify({"error": "server_error", "message": "Could not load claim evolution."}), 500
 
 
 @app.route("/document/analyze", methods=["POST"])
@@ -304,8 +312,9 @@ def document_analysis_endpoint():
         from document_analysis import analyze_document_content
         result = analyze_document_content(doc_text, doc_title, verify_claims=True)
         return jsonify(result)
-    except Exception as exc:
-        return jsonify({"error": "server_error", "message": str(exc)}), 500
+    except Exception:
+        app.logger.exception("Document analysis failed")
+        return jsonify({"error": "server_error", "message": "Document analysis failed."}), 500
 
 
 @app.route("/monitor/subscribe", methods=["POST"])
@@ -353,6 +362,19 @@ def monitor_list_endpoint():
         return jsonify({"monitors": list_user_monitors(session_id)})
     except Exception as exc:
         return jsonify({"error": "server_error", "message": str(exc)}), 500
+
+
+@app.route("/monitor/notifications", methods=["GET"])
+@rate_limited
+def monitor_notifications_endpoint():
+    """Return recent in-app evidence alerts scoped to the caller's anonymous session."""
+    session_id = _derive_session_id()
+    try:
+        from claim_monitor import list_user_notifications
+        return jsonify({"notifications": list_user_notifications(session_id)})
+    except Exception:
+        app.logger.exception("Could not load monitor notifications")
+        return jsonify({"error": "server_error", "message": "Could not load notifications."}), 500
 
 
 @app.route("/report", methods=["GET"])
@@ -421,8 +443,9 @@ def submit_correction_endpoint():
             contact_email=contact_email
         )
         return jsonify(res)
-    except Exception as exc:
-        return jsonify({"error": "server_error", "message": str(exc)}), 500
+    except Exception:
+        app.logger.exception("Correction submission failed")
+        return jsonify({"error": "server_error", "message": "Correction submission failed."}), 500
 
 
 @app.route("/history", methods=["GET"])
@@ -472,6 +495,7 @@ def health_check():
             "/document/analyze":    "POST – Research document/notice chunking & passage citations",
             "/monitor/subscribe":   "POST – Opt-in alert subscription on new evidence",
             "/monitor/list":        "GET  – List active monitors for user session",
+            "/monitor/notifications": "GET – List session-scoped monitor notifications",
             "/report":              "GET  – Linkable HTML evidence report with ClaimReview schema",
             "/transparency":        "GET  – Quality observability metrics & audit benchmarks",
             "/correction":          "POST – Submit human correction with citation evidence",
