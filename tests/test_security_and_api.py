@@ -59,3 +59,37 @@ def test_session_history_isolated_by_session_header(client, monkeypatch):
     second = client.get('/history', headers={'X-Session-ID': 'session-user-bbbb2222'}).get_json()['history']
     assert [item['claim'] for item in first] == ['claim one']
     assert [item['claim'] for item in second] == ['claim two']
+
+def test_consensus_does_not_overstate_one_publisher():
+    from verification_engine import evaluate_conflict_and_consensus
+    result = evaluate_conflict_and_consensus([{
+        'publisher': 'Publisher A', 'domain': 'publisher-a.example',
+        'stance': 'supports', 'authority_score': 100, 'cluster_id': 'a',
+    }])
+    assert result['consensus_direction'] == 'unknown'
+    assert result['independent_publisher_count'] == 1
+    assert 'Insufficient' in result['status']
+
+
+def test_rate_limit_returns_429(client, monkeypatch):
+    monkeypatch.setattr(app_module, 'MAX_REQUESTS_PER_HOUR', 1)
+    assert client.get('/history').status_code == 200
+    assert client.get('/history').status_code == 429
+
+
+def test_document_endpoint_rejects_wrong_types(client):
+    assert client.post('/document/analyze', json=[]).status_code == 400
+    assert client.post('/document/analyze', json={'text': [], 'title': 'x'}).status_code == 400
+
+
+def test_correction_endpoint_rejects_unsafe_url(client):
+    response = client.post('/correction', json={
+        'claim_text': 'Claim', 'evidence_url': 'javascript:alert(1)', 'rationale': 'Evidence'
+    })
+    assert response.status_code == 400
+
+
+def test_health_route_lists_monitor_notification_endpoint(client):
+    response = client.get('/health')
+    assert response.status_code == 200
+    assert '/monitor/notifications' in response.get_json()['endpoints']
