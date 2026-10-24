@@ -134,18 +134,27 @@ def set_preferences(session_id: str, enabled: bool, retention_days: int = 90) ->
     conn.commit()
     conn.close()
     if not enabled:
-        clear_private_memory(session_id)
+        clear_private_memory(session_id, preserve_preferences=True)
     return {"enabled": enabled, "retention_days": retention_days}
 
-def clear_private_memory(session_id: str) -> int:
+def clear_private_memory(session_id: str, preserve_preferences: bool = False) -> int:
     conn = _conn()
     ids = [r["id"] for r in conn.execute("SELECT id FROM investigations WHERE session_id=?", (session_id,))]
     for inv_id in ids:
         conn.execute("DELETE FROM investigations WHERE id=?", (inv_id,))
-    conn.execute("DELETE FROM memory_preferences WHERE session_id=?", (session_id,))
+    if not preserve_preferences:
+        conn.execute("DELETE FROM memory_preferences WHERE session_id=?", (session_id,))
     conn.commit()
     conn.close()
     return len(ids)
+
+def delete_investigation(session_id: str, investigation_id: str) -> bool:
+    conn = _conn()
+    cursor = conn.execute("DELETE FROM investigations WHERE id=? AND session_id=?", (investigation_id, session_id))
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
 
 def _event(conn: sqlite3.Connection, inv_id: str, kind: str, payload: dict[str, Any]) -> None:
     conn.execute("INSERT INTO investigation_events(investigation_id,event_type,payload_json,created_at) VALUES(?,?,?,?)",
