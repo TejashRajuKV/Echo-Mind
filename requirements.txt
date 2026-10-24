@@ -7,3 +7,6 @@ feedparser
 schedule
 vertexai
 python-dotenv
+Pillow>=10.0.0
+pytesseract>=0.3.10
+langdetect>=1.0.9

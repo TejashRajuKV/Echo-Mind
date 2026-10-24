@@ -439,3 +439,59 @@ This project was created for educational and hackathon purposes.
 
 **Thunderwing Falcons** -- Electrifying speed meets sharp precision  
 **Echo Mind** -- Suggesting intelligent responses and echoes of knowledge
+
+
+## Incremental verification sprint: implementation and operational notes
+
+The following APIs are available in the current codebase. They are opt-in/explicit endpoints; scheduled execution still needs a scheduler or deployment cron.
+
+| Endpoint | Purpose | Access |
+|---|---|---|
+| `POST /context/revalidate` | Re-run expired cache claims and record before/after verdict and score | `X-API-Key` required |
+| `GET /context/revalidation-history?claim=...` | Inspect revalidation attempts and verdict changes | `X-API-Key` required |
+| `POST /claim-family/compare` | Compare two claims, surface material numeric/negation changes, and advise re-verification | Rate-limited |
+| `GET /claim-family/evaluation` | Run the curated JSONL claim-family benchmark and return precision/recall/F1 | `X-API-Key` required |
+| `GET/POST /investigations/<id>/provenance` | Read or create a claim-to-source provenance graph for the current session's investigation | Session-scoped |
+| `POST /message/ocr` | Extract text from an uploaded image with local Tesseract OCR | Optional OCR dependencies |
+| `POST /message/language` | Best-effort language detection | Rate-limited |
+| `POST /message/multilingual-match` | Find related session investigations, optionally using a translated query | Optional translation API key |
+| `GET /public/fact-check?claim=...` | Generate a standalone shareable report from a fresh analysis | Public, rate-limited; not a permanent archival URL |
+| `GET/POST /notifications` | Read or create session-scoped in-app notifications | Session-scoped |
+| `POST /notifications/<id>/read` | Mark one caller-owned notification as read | Session-scoped |
+| `GET /review/corrections` | List submitted human correction requests | `X-API-Key` required |
+| `POST /review/corrections/<id>` | Mark a correction pending, accepted, rejected, or needing more evidence and record a moderator note | `X-API-Key` required |
+
+### Running the incremental verification benchmark
+
+Run the tests and the small labelled benchmark from the repository root:
+
+```bash
+python -m pytest -q
+python -c "from incremental_verification import evaluate_claim_families; print(evaluate_claim_families())"
+```
+
+The initial `data/claim_family_eval.jsonl` file is a **small curated smoke dataset**, not a production accuracy claim. Use independently labelled, representative examples with hard negatives, regional languages, dates, amounts, negation, entity substitutions and temporal updates before selecting similarity thresholds. Similarity is a candidate-retrieval hint, never evidence of truth.
+
+For follow-up latency experiments, prepare a separate JSONL file with independently human-labelled `claim` and `expected_verdict` fields, then run `python benchmark_followups.py your_labels.jsonl`. Add `--live` only when you intentionally want fresh provider-backed analyses (which may be slow and may incur API usage). The script reports context-lookup and live-analysis latency, and compares live verdicts with the supplied labels; it does not fabricate a quality score from unlabeled examples.
+
+### Optional OCR and multilingual lookup
+
+- OCR uses Pillow and `pytesseract`; install the Tesseract system executable separately and configure it in the runtime PATH. If unavailable, `POST /message/ocr` returns an explicit unavailable response rather than pretending OCR succeeded.
+- Multilingual lookup uses language detection and session-private investigation history. If `GOOGLE_TRANSLATE_API_KEY` is configured, a translated query can be used to find candidates; translation is not evidence and all claims still require original-language source verification.
+- OCR may misread amounts, dates, names and negations. The user must review extracted text before analysis.
+
+### Revalidation and quality measurement
+
+Call `POST /context/revalidate` periodically from a protected scheduler using the API key. Revalidation stores a run record, before/after verdict and score, source count, outcome and failure code. Failed runs leave the cache expired; they do not extend its freshness. Keep worker concurrency bounded and monitor failures. A route call does not itself create a recurring scheduler.
+
+A standalone worker is also included: run `python revalidation_worker.py` as a supervised process next to Flask, or run `python revalidation_worker.py --once` for a single batch. Configure `REVALIDATION_INTERVAL_SECONDS` (minimum 60, default 900) and `REVALIDATION_BATCH_SIZE` (1–100, default 10). Use a process supervisor/container worker in deployment and stop it gracefully during maintenance. Do not run an unbounded number of worker replicas against the same SQLite file.
+
+Measure follow-up investigation performance with a fixed labelled test set and record:
+- end-to-end and retrieval median/p95 latency;
+- cache hit rate and percentage of expired entries successfully revalidated;
+- source citation coverage and independent-publisher count;
+- verdict changes confirmed by human review;
+- precision/recall/F1 of claim-family candidates, stratified by language and material changes;
+- false positives, false negatives and abstention rate.
+
+Compare repeated investigations against a fresh-analysis baseline. Do not report speed improvements unless measured on the same workload, and do not trade away source quality or verification accuracy for cache hits.

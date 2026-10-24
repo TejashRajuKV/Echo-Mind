@@ -47,6 +47,9 @@ def _get_metrics_conn():
             reviewed_at TEXT
         )
     """)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(human_corrections)").fetchall()}
+    if "reviewer_note" not in columns:
+        conn.execute("ALTER TABLE human_corrections ADD COLUMN reviewer_note TEXT NOT NULL DEFAULT ''")
     conn.commit()
     return conn
 
@@ -167,3 +170,39 @@ if __name__ == "__main__":
     log_verification_telemetry("Test Claim", "Trustworthy", 90, 4, True, False, True, 210, "en")
     metrics = get_transparency_metrics()
     print("Transparency metrics:", metrics)
+
+
+def review_human_correction(correction_id: int, status: str, reviewer_note: str = "") -> Dict[str, Any]:
+    """Update a correction's review state; intended for an authenticated moderator endpoint."""
+    allowed = {"pending", "accepted", "rejected", "needs_more_evidence"}
+    if status not in allowed:
+        raise ValueError("unsupported review status")
+    if not isinstance(reviewer_note, str) or len(reviewer_note) > 4000:
+        raise ValueError("reviewer_note must be at most 4000 characters")
+    now = datetime.utcnow().isoformat() + "Z"
+    conn = _get_metrics_conn()
+    cur = conn.execute("UPDATE human_corrections SET status=?, reviewed_at=?, reviewer_note=? WHERE id=?",
+                       (status, now, reviewer_note.strip(), int(correction_id)))
+    conn.commit()
+    exists = cur.rowcount > 0
+    conn.close()
+    if not exists:
+        return {"updated": False, "correction_id": int(correction_id)}
+    return {"updated": True, "correction_id": int(correction_id), "status": status,
+            "reviewed_at": now, "reviewer_note_recorded": bool(reviewer_note.strip())}
+
+
+def list_human_corrections(status: str = "pending", limit: int = 100) -> List[Dict[str, Any]]:
+    """Return a bounded correction queue for an authenticated moderator."""
+    allowed = {"pending", "accepted", "rejected", "needs_more_evidence", "all"}
+    if status not in allowed:
+        raise ValueError("unsupported correction status")
+    conn = _get_metrics_conn()
+    if status == "all":
+        rows = conn.execute("SELECT id,claim_text,reported_verdict,suggested_verdict,evidence_url,rationale,status,submitted_at,reviewed_at,reviewer_note FROM human_corrections ORDER BY id DESC LIMIT ?",
+                            (max(1, min(int(limit), 200)),)).fetchall()
+    else:
+        rows = conn.execute("SELECT id,claim_text,reported_verdict,suggested_verdict,evidence_url,rationale,status,submitted_at,reviewed_at,reviewer_note FROM human_corrections WHERE status=? ORDER BY id DESC LIMIT ?",
+                            (status, max(1, min(int(limit), 200)))).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]

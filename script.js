@@ -1192,3 +1192,92 @@ function addVoiceControls() {
     // Uncomment the line below if you want to add the replay button
     // document.body.insertAdjacentHTML('beforeend', voiceControlsHTML);
 }
+
+
+// Investigation workspace: use textContent for all untrusted claim/source labels.
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.getElementById('investigation-workspace');
+  if (!root) return;
+  let selectedId = null;
+  const $ = id => document.getElementById(id);
+  const status = message => { $('workspace-status').textContent = message; };
+  const request = async (url, options = {}) => {
+    const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+    const data = response.headers.get('content-type')?.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) throw new Error(data?.message || data?.error || 'Request failed (' + response.status + ')');
+    return data;
+  };
+  const loadGraph = async () => {
+    if (!selectedId) return;
+    const graph = await request('/investigations/' + encodeURIComponent(selectedId) + '/provenance');
+    $('workspace-graph').textContent = JSON.stringify(graph, null, 2);
+  };
+  const loadInvestigations = async () => {
+    const data = await request('/investigations?limit=30');
+    const list = $('workspace-list');
+    list.replaceChildren();
+    if (!data.investigations?.length) { list.textContent = 'No investigations saved yet.'; return; }
+    data.investigations.forEach(item => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.style.cssText = 'display:block;width:100%;text-align:left;margin:.35rem 0;padding:.65rem;overflow-wrap:anywhere';
+      button.textContent = (item.verdict || 'Not yet verified') + ' — ' + item.claim;
+      button.addEventListener('click', async () => {
+        selectedId = item.id;
+        $('workspace-selected').textContent = 'Selected: ' + item.claim;
+        $('workspace-save-sources').disabled = false;
+        try { await loadGraph(); status('Investigation loaded. Add source links to build provenance.'); }
+        catch (e) { status(e.message); }
+      });
+      list.appendChild(button);
+    });
+  };
+  $('workspace-create').addEventListener('click', async () => {
+    const claim = $('workspace-claim').value.trim();
+    if (!claim) { status('Enter a claim first.'); return; }
+    try {
+      const result = await request('/investigations', { method: 'POST', body: JSON.stringify({ claim }) });
+      selectedId = result.investigation.id;
+      $('workspace-selected').textContent = 'Selected: ' + claim;
+      $('workspace-save-sources').disabled = false;
+      status('Investigation created. It is not verified until evidence is checked.');
+      await loadInvestigations();
+      await loadGraph();
+    } catch (e) { status(e.message); }
+  });
+  $('workspace-refresh').addEventListener('click', () => loadInvestigations().catch(e => status(e.message)));
+  $('workspace-save-sources').addEventListener('click', async () => {
+    if (!selectedId) return;
+    let sources;
+    try { sources = JSON.parse($('workspace-sources').value || '[]'); }
+    catch (_) { status('Sources must be valid JSON.'); return; }
+    if (!Array.isArray(sources)) { status('Sources must be a JSON array.'); return; }
+    try {
+      const graph = await request('/investigations/' + encodeURIComponent(selectedId) + '/provenance', { method: 'POST', body: JSON.stringify({ sources }) });
+      $('workspace-graph').textContent = JSON.stringify(graph, null, 2);
+      status('Provenance graph saved. Only valid HTTP(S) source URLs are retained.');
+    } catch (e) { status(e.message); }
+  });
+  $('workspace-ocr').addEventListener('click', async () => {
+    const file = $('workspace-image').files?.[0];
+    if (!file) { $('workspace-ocr-status').textContent = 'Choose an image first.'; return; }
+    const form = new FormData(); form.append('image', file);
+    try {
+      const response = await fetch('/message/ocr', { method: 'POST', body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'OCR failed');
+      $('workspace-claim').value = data.text || '';
+      $('workspace-ocr-status').textContent = data.warning || 'Text extracted. Verify it against the original image.';
+    } catch (e) { $('workspace-ocr-status').textContent = e.message; }
+  });
+  $('workspace-language-match').addEventListener('click', async () => {
+    const text = $('workspace-claim').value.trim();
+    if (!text) { status('Enter or OCR a claim first.'); return; }
+    try {
+      const data = await request('/message/multilingual-match', { method: 'POST', body: JSON.stringify({ text }) });
+      $('workspace-match-results').textContent = JSON.stringify(data, null, 2);
+      status(data.note || 'Related claim lookup complete.');
+    } catch (e) { status(e.message); }
+  });
+  loadInvestigations().catch(e => status(e.message));
+});

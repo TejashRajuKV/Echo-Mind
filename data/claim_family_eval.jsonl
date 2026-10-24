@@ -1,0 +1,25 @@
+{"id":"cf001","claim_a":"The government will give ₹15000 to every college student","claim_b":"Every college student will receive 15000 rupees from the government","same_family":true,"phenomenon":"paraphrase"}
+{"id":"cf002","claim_a":"Government announces 15000 rupees for college students","claim_b":"Government announces 20000 rupees for college students","same_family":true,"phenomenon":"material_amount_change"}
+{"id":"cf003","claim_a":"The minister resigned on Monday","claim_b":"The minister did not resign on Monday","same_family":true,"phenomenon":"negation_change"}
+{"id":"cf004","claim_a":"Cyclone warning issued for Chennai today","claim_b":"Cyclone warning issued for Chennai tomorrow","same_family":true,"phenomenon":"date_change"}
+{"id":"cf005","claim_a":"New vaccine approved by WHO","claim_b":"WHO has approved a new vaccine","same_family":true,"phenomenon":"paraphrase"}
+{"id":"cf006","claim_a":"Bank announces interest rate cut to 5 percent","claim_b":"Bank announces interest rate cut to 7 percent","same_family":true,"phenomenon":"numeric_change"}
+{"id":"cf007","claim_a":"School closed due to heavy rain in Bengaluru","claim_b":"Schools are closed in Bengaluru because of heavy rainfall","same_family":true,"phenomenon":"paraphrase"}
+{"id":"cf008","claim_a":"Government bans single use plastic from January","claim_b":"Government bans single use plastic from July","same_family":true,"phenomenon":"date_change"}
+{"id":"cf009","claim_a":"Actor arrested in Bengaluru fraud case","claim_b":"Actor was arrested for fraud in Bengaluru","same_family":true,"phenomenon":"paraphrase"}
+{"id":"cf010","claim_a":"Railway fare increased by 10 percent","claim_b":"Railway fare increased by 15 percent","same_family":true,"phenomenon":"numeric_change"}
+{"id":"cf011","claim_a":"The moon is made of cheese","claim_b":"The moon consists of cheese","same_family":true,"phenomenon":"paraphrase"}
+{"id":"cf012","claim_a":"India won the cricket match against Australia","claim_b":"Australia won the cricket match against India","same_family":false,"phenomenon":"subject_role_reversal"}
+{"id":"cf013","claim_a":"The court acquitted the accused","claim_b":"The court convicted the accused","same_family":false,"phenomenon":"opposite_outcome"}
+{"id":"cf014","claim_a":"A flood warning was issued for Kerala","claim_b":"A drought warning was issued for Rajasthan","same_family":false,"phenomenon":"different_event"}
+{"id":"cf015","claim_a":"The new policy applies to students in Karnataka","claim_b":"The new policy applies to students in Maharashtra","same_family":true,"phenomenon":"location_change"}
+{"id":"cf016","claim_a":"The Prime Minister announced the new scheme","claim_b":"A new species of frog was discovered in the Western Ghats","same_family":false,"phenomenon":"unrelated"}
+{"id":"cf017","claim_a":"A 6.5 magnitude earthquake struck Nepal","claim_b":"A 6.5 magnitude earthquake struck Nepal","same_family":true,"phenomenon":"exact"}
+{"id":"cf018","claim_a":"The university cancelled exams this week","claim_b":"The university postponed exams this week","same_family":true,"phenomenon":"near paraphrase"}
+{"id":"cf019","claim_a":"A new tax will apply from April 1","claim_b":"A new tax will apply from October 1","same_family":true,"phenomenon":"date_change"}
+{"id":"cf020","claim_a":"A celebrity endorsed a crypto token","claim_b":"A celebrity denied endorsing a crypto token","same_family":true,"phenomenon":"negation_change"}
+{"id":"cf021","claim_a":"Heavy rain caused flooding in Mumbai","claim_b":"Heavy rain caused flooding in Delhi","same_family":true,"phenomenon":"location_change"}
+{"id":"cf022","claim_a":"The World Health Organization approved a new malaria vaccine","claim_b":"The WHO approved a new malaria vaccine","same_family":true,"phenomenon":"abbreviation"}
+{"id":"cf023","claim_a":"The stock market fell 4 percent today","claim_b":"The stock market rose 4 percent today","same_family":true,"phenomenon":"direction_change"}
+{"id":"cf024","claim_a":"Police arrested three suspects in Jaipur","claim_b":"Police arrested three suspects in Pune","same_family":true,"phenomenon":"location_change"}
+{"id":"cf025","claim_a":"A celebrity has died","claim_b":"A celebrity announced a new movie","same_family":false,"phenomenon":"unrelated"}
