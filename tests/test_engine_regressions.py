@@ -87,7 +87,7 @@ class ReportSecurityTests(unittest.TestCase):
         evil = closing + "<script>alert(1)" + closing
         report = generate_shareable_report_html({"classification": "Suspicious"}, evil)
         self.assertNotIn(closing + "<script>alert(1)", report.lower())
-        self.assertIn(r"\\u003c/script\\u003e", report.lower())
+        self.assertIn(r"\u003c/script\u003e", report.lower())
 
     def test_unsafe_source_schemes_are_not_linked(self):
         report = generate_shareable_report_html({
