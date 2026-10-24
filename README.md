@@ -484,6 +484,8 @@ For follow-up latency experiments, prepare a separate JSONL file with independen
 
 Call `POST /context/revalidate` periodically from a protected scheduler using the API key. Revalidation stores a run record, before/after verdict and score, source count, outcome and failure code. Failed runs leave the cache expired; they do not extend its freshness. Keep worker concurrency bounded and monitor failures. A route call does not itself create a recurring scheduler.
 
+A standalone worker is also included: run `python revalidation_worker.py` as a supervised process next to Flask, or run `python revalidation_worker.py --once` for a single batch. Configure `REVALIDATION_INTERVAL_SECONDS` (minimum 60, default 900) and `REVALIDATION_BATCH_SIZE` (1–100, default 10). Use a process supervisor/container worker in deployment and stop it gracefully during maintenance. Do not run an unbounded number of worker replicas against the same SQLite file.
+
 Measure follow-up investigation performance with a fixed labelled test set and record:
 - end-to-end and retrieval median/p95 latency;
 - cache hit rate and percentage of expired entries successfully revalidated;
