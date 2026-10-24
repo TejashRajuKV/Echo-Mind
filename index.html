@@ -411,6 +411,40 @@
         </div>
     </section>
 
+
+    <section id="investigation-workspace" style="padding:4rem 0;background:#f8fafc;color:#0f172a">
+      <div class="container" style="max-width:1100px;margin:auto;padding:0 1rem">
+        <h2>Investigation Workspace</h2>
+        <p>Keep related claims together, inspect source provenance, and review extracted text before checking it. Similarity and translation are navigation hints, not evidence.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">
+          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
+            <h3>Start an investigation</h3>
+            <textarea id="workspace-claim" rows="4" maxlength="2000" style="width:100%;box-sizing:border-box;padding:.75rem" placeholder="Paste a claim to investigate"></textarea>
+            <button id="workspace-create" type="button">Create investigation</button>
+            <button id="workspace-refresh" type="button">Refresh history</button>
+            <h4>Recent investigations</h4><div id="workspace-list" aria-live="polite">Loading…</div>
+          </div>
+          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
+            <h3>Screenshot OCR</h3>
+            <input id="workspace-image" type="file" accept="image/png,image/jpeg,image/webp,image/tiff">
+            <button id="workspace-ocr" type="button">Extract text</button>
+            <p id="workspace-ocr-status" aria-live="polite"></p>
+            <h3>Cross-language lookup</h3>
+            <button id="workspace-language-match" type="button">Find related claims</button>
+            <pre id="workspace-match-results" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+          </div>
+          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
+            <h3>Evidence provenance</h3>
+            <p id="workspace-selected">Select an investigation to inspect its graph.</p>
+            <textarea id="workspace-sources" rows="5" style="width:100%;box-sizing:border-box;padding:.75rem" placeholder='Paste a JSON array of sources: [{"title":"Official notice","url":"https://example.gov/notice","stance":"supports"}]'></textarea>
+            <button id="workspace-save-sources" type="button" disabled>Build source graph</button>
+            <pre id="workspace-graph" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+          </div>
+        </div>
+        <p id="workspace-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
