@@ -27,7 +27,7 @@ The tests intentionally do not call live search APIs, Vertex AI, Gemini, or SMTP
 Run the worker as a separate long-lived process/container, not in every Flask worker:
 
 ```bash
-MONITOR_INTERVAL_MINUTES=30 MONITOR_BATCH_SIZE=50 python monitor_worker.py
+MONITOR_INTERVAL_MINUTES=30 python monitor_worker.py
 ```
 
 SMTP settings (all optional; without them, alerts remain in the in-app notification table):
