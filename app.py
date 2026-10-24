@@ -117,23 +117,35 @@ def update_session(session_id: str, points: int, badges: list, claim_text: str,
 
 
 # ---------------------------------------------------------------------------
-# In-process rate-limiter (keyed by IP + hour bucket)
+# SQLite-backed rate limiter shared across worker processes on one host.
+# For multi-instance deployments, use a shared gateway/Redis rate limiter.
 # ---------------------------------------------------------------------------
-_rate_counts: dict = {}
-_rate_lock = threading.Lock()
-
-
 def _check_rate_limit(ip: str) -> bool:
-    bucket = f"{ip}_{int(time.time() // 3600)}"
-    with _rate_lock:
-        count = _rate_counts.get(bucket, 0) + 1
-        _rate_counts[bucket] = count
-        # Prune old buckets to avoid unbounded growth
-        if len(_rate_counts) > 10_000:
-            oldest = sorted(_rate_counts.keys())[:5_000]
-            for k in oldest:
-                del _rate_counts[k]
-    return count <= MAX_REQUESTS_PER_HOUR
+    hour_bucket = int(time.time() // 3600)
+    bucket_key = hashlib.sha256((ip or "unknown").encode("utf-8")).hexdigest()
+    conn = _session_db()
+    try:
+        # IMMEDIATE serializes concurrent increments across workers sharing this DB.
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "INSERT INTO rate_limit_buckets(bucket_key, hour_bucket, request_count) VALUES (?, ?, 1) "
+            "ON CONFLICT(bucket_key, hour_bucket) DO UPDATE SET request_count=request_count+1",
+            (bucket_key, hour_bucket),
+        )
+        row = conn.execute(
+            "SELECT request_count FROM rate_limit_buckets WHERE bucket_key=? AND hour_bucket=?",
+            (bucket_key, hour_bucket),
+        ).fetchone()
+        conn.execute("DELETE FROM rate_limit_buckets WHERE hour_bucket < ?", (hour_bucket - 2,))
+        conn.commit()
+        return int(row["request_count"]) <= MAX_REQUESTS_PER_HOUR
+    except Exception:
+        conn.rollback()
+        # Fail closed if the persistent limiter cannot be updated.
+        app.logger.exception("Rate limiter storage failed")
+        return False
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
