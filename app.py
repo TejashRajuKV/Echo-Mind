@@ -567,6 +567,16 @@ def health_check():
             "/correction":          "POST – Submit human correction with citation evidence",
             "/stats":               "GET  – DB statistics (requires X-API-Key)",
             "/health":              "GET  – Health check (public)",
+            "/context/revalidate": "POST – Revalidate expired source-backed cache (API key)",
+            "/context/revalidation-history": "GET – Revalidation/verdict-change history (API key)",
+            "/claim-family/compare": "POST – Compare related claims and material changes",
+            "/claim-family/evaluation": "GET – Labelled claim-family benchmark (API key)",
+            "/investigations/<id>/provenance": "GET/POST – Claim-to-source provenance graph",
+            "/message/ocr": "POST – Optional local OCR for uploaded images",
+            "/message/language": "POST – Best-effort language detection",
+            "/public/fact-check": "GET – Generate a public standalone fact-check page",
+            "/review/corrections": "GET – Correction review queue (API key)",
+            "/notifications": "GET/POST – Session-scoped in-app notifications",
         },
     })
 
@@ -743,6 +753,186 @@ def forwarded_message_analysis_endpoint():
     except Exception:
         app.logger.exception("Forwarded message analysis failed")
         return jsonify({"error": "server_error", "message": "Message analysis failed."}), 500
+
+
+
+# ---------------------------------------------------------------------------
+# Incremental verification, provenance, OCR and review APIs
+# ---------------------------------------------------------------------------
+@app.route("/context/revalidate", methods=["POST"])
+@require_api_key
+@rate_limited
+def context_revalidate_endpoint():
+    data = request.get_json(silent=True) or {}
+    try:
+        limit = int(data.get("limit", 10))
+    except (TypeError, ValueError):
+        return jsonify({"error": "bad_request", "message": "limit must be an integer."}), 400
+    if not 1 <= limit <= 100:
+        return jsonify({"error": "bad_request", "message": "limit must be between 1 and 100."}), 400
+    try:
+        from incremental_verification import revalidate_expired
+        return jsonify(revalidate_expired(limit))
+    except Exception:
+        app.logger.exception("Cache revalidation failed")
+        return jsonify({"error": "server_error", "message": "Cache revalidation failed."}), 500
+
+
+@app.route("/context/revalidation-history", methods=["GET"])
+@require_api_key
+@rate_limited
+def context_revalidation_history_endpoint():
+    claim = request.args.get("claim", "").strip()
+    if not claim or len(claim) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "A valid claim query parameter is required."}), 400
+    try:
+        from incremental_verification import revalidation_history
+        return jsonify({"claim": claim, "history": revalidation_history(claim)})
+    except Exception:
+        app.logger.exception("Revalidation history lookup failed")
+        return jsonify({"error": "server_error", "message": "Could not load revalidation history."}), 500
+
+
+@app.route("/claim-family/compare", methods=["POST"])
+@rate_limited
+def claim_family_compare_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("claim_a"), str) or not isinstance(data.get("claim_b"), str):
+        return jsonify({"error": "bad_request", "message": "claim_a and claim_b must be strings."}), 400
+    if not data["claim_a"].strip() or not data["claim_b"].strip() or max(len(data["claim_a"]), len(data["claim_b"])) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Claims must be non-empty and within the length limit."}), 400
+    try:
+        from incremental_verification import claim_family_similarity
+        return jsonify(claim_family_similarity(data["claim_a"], data["claim_b"]))
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+
+
+@app.route("/claim-family/evaluation", methods=["GET"])
+@require_api_key
+@rate_limited
+def claim_family_evaluation_endpoint():
+    try:
+        from incremental_verification import evaluate_claim_families
+        return jsonify(evaluate_claim_families())
+    except Exception:
+        app.logger.exception("Claim-family evaluation failed")
+        return jsonify({"error": "server_error", "message": "Could not evaluate claim families."}), 500
+
+
+@app.route("/investigations/<investigation_id>/provenance", methods=["GET", "POST"])
+@rate_limited
+def investigation_provenance_endpoint(investigation_id):
+    from context_memory import get_investigation
+    session_id = _derive_session_id()
+    item = get_investigation(session_id, investigation_id)
+    if not item:
+        return jsonify({"error": "not_found", "message": "Investigation not found."}), 404
+    try:
+        from incremental_verification import build_provenance_graph, get_provenance_graph
+        if request.method == "GET":
+            return jsonify(get_provenance_graph(investigation_id))
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not isinstance(data.get("sources", []), list):
+            return jsonify({"error": "bad_request", "message": "sources must be an array."}), 400
+        if len(data.get("sources", [])) > 100:
+            return jsonify({"error": "bad_request", "message": "At most 100 sources are accepted."}), 400
+        graph = build_provenance_graph(investigation_id, item.get("claim", ""), data.get("sources", []))
+        from context_memory import record_event
+        record_event(session_id, investigation_id, "evidence_added", {"source_count": len(graph["edges"])})
+        return jsonify(graph), 201
+    except Exception:
+        app.logger.exception("Provenance graph operation failed")
+        return jsonify({"error": "server_error", "message": "Could not process provenance graph."}), 500
+
+
+@app.route("/message/ocr", methods=["POST"])
+@rate_limited
+def message_ocr_endpoint():
+    if "image" not in request.files:
+        return jsonify({"error": "bad_request", "message": "Upload an image in the 'image' field."}), 400
+    try:
+        from ocr_support import extract_upload
+        return jsonify(extract_upload(request.files["image"]))
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": "ocr_unavailable", "message": str(exc)}), 503
+    except Exception:
+        app.logger.exception("Image OCR failed")
+        return jsonify({"error": "ocr_failed", "message": "Could not extract text from image."}), 422
+
+
+@app.route("/message/language", methods=["POST"])
+@rate_limited
+def message_language_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+        return jsonify({"error": "bad_request", "message": "text must be a string."}), 400
+    if not data["text"].strip() or len(data["text"]) > 30000:
+        return jsonify({"error": "bad_request", "message": "text must be non-empty and at most 30,000 characters."}), 400
+    from incremental_verification import detect_language
+    return jsonify({"language": detect_language(data["text"]), "automatic_translation": False,
+                    "note": "Language detection is a hint only. Verify claims against reliable sources in the original language."})
+
+
+@app.route("/public/fact-check", methods=["GET"])
+@rate_limited
+def public_fact_check_endpoint():
+    # A public report is generated from a fresh analysis and does not expose private investigation history.
+    claim = request.args.get("claim", "").strip()
+    if not claim or len(claim) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "A valid claim query parameter is required."}), 400
+    try:
+        from analysis_engine import analyze_claim
+        from shareable_report import generate_shareable_report_html
+        result = analyze_claim(claim, save_to_database=False)
+        result["claim"] = claim
+        page = generate_shareable_report_html(result, claim, report_id="public-" + __import__("hashlib").sha256(claim.encode()).hexdigest()[:16])
+        return page, 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}
+    except Exception:
+        app.logger.exception("Public fact-check page generation failed")
+        return "<h3>Fact-check page could not be generated. Please retry later.</h3>", 500
+
+
+@app.route("/review/corrections", methods=["GET"])
+@require_api_key
+@rate_limited
+def correction_review_queue_endpoint():
+    try:
+        from transparency_dashboard import get_transparency_metrics
+        metrics = get_transparency_metrics()
+        return jsonify({"queue": metrics.get("correction_queue", []),
+                        "note": "Use the existing correction submission workflow; review access requires the API key."})
+    except Exception:
+        app.logger.exception("Correction review queue failed")
+        return jsonify({"error": "server_error", "message": "Could not load correction queue."}), 500
+
+
+@app.route("/notifications", methods=["GET"])
+@rate_limited
+def notifications_endpoint():
+    try:
+        from incremental_verification import list_notifications
+        return jsonify({"notifications": list_notifications(_derive_session_id())})
+    except Exception:
+        app.logger.exception("Notification listing failed")
+        return jsonify({"error": "server_error", "message": "Could not load notifications."}), 500
+
+
+@app.route("/notifications", methods=["POST"])
+@rate_limited
+def notification_create_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("title"), str) or not isinstance(data.get("body"), str):
+        return jsonify({"error": "bad_request", "message": "title and body must be strings."}), 400
+    if not data["title"].strip() or len(data["title"]) > 200 or len(data["body"]) > 4000:
+        return jsonify({"error": "bad_request", "message": "title/body is empty or too long."}), 400
+    try:
+        from incremental_verification import create_notification
+        return jsonify(create_notification(_derive_session_id(), data["title"], data["body"], data.get("kind", "info"), data.get("payload", {}))), 201
+    except ValueError as exc:
+        return jsonify({"error": "bad_request", "message": str(exc)}), 400
 
 
 # ---------------------------------------------------------------------------
