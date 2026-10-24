@@ -32,6 +32,9 @@ ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 MAX_REQUESTS_PER_HOUR = int(os.environ.get("MAX_REQUESTS_PER_HOUR", 100))
 MAX_CLAIM_LENGTH      = int(os.environ.get("MAX_CLAIM_LENGTH", 2000))
 DEBUG_MODE            = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+# Never permit the interactive debugger in managed/explicit production deployments.
+if os.environ.get("K_SERVICE") or os.environ.get("FLASK_ENV", "").lower() == "production":
+    DEBUG_MODE = False
 
 # ---------------------------------------------------------------------------
 # Persistent user-session database (SQLite, thread-safe)
@@ -145,6 +148,7 @@ except ImportError:
 # Flask application
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH", str(1024 * 1024)))
 
 # Restrictive CORS: only allow declared origins, only the needed methods/headers
 CORS(
@@ -163,7 +167,7 @@ CORS(
 def rate_limited(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not _check_rate_limit(request.remote_addr):
+        if not _check_rate_limit(request.remote_addr or "unknown"): 
             return jsonify({
                 "error": "rate_limit_exceeded",
                 "message": f"Maximum {MAX_REQUESTS_PER_HOUR} requests per hour per IP.",
@@ -200,11 +204,11 @@ def _derive_session_id() -> str:
     in localStorage), otherwise fall back to a hash of the IP.
     """
     explicit = request.headers.get("X-Session-ID", "").strip()
-    if explicit and 8 <= len(explicit) <= 128:
+    if explicit and 16 <= len(explicit) <= 128:
         # Hash so that raw UUIDs are never stored verbatim
         return hashlib.sha256(explicit.encode()).hexdigest()
     # Fallback: derive from IP (coarse – all users behind same NAT share state)
-    return hashlib.sha256(request.remote_addr.encode()).hexdigest()
+    return hashlib.sha256((request.remote_addr or "unknown").encode()).hexdigest()
 
 
 def _validate_claim(data) -> tuple[str | None, str | None]:
@@ -283,9 +287,15 @@ def claim_evolution_endpoint():
 @rate_limited
 def document_analysis_endpoint():
     """Extracts claims from research papers, official notices, and reports with passage citations."""
-    data = request.get_json(silent=True) or {}
-    doc_text = data.get("text", "").strip()
-    doc_title = data.get("title", "Submitted Document").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    doc_text = data.get("text", "")
+    doc_title = data.get("title", "Submitted Document")
+    if not isinstance(doc_text, str) or not isinstance(doc_title, str):
+        return jsonify({"error": "bad_request", "message": "Fields 'text' and 'title' must be strings."}), 400
+    doc_text = doc_text.strip()
+    doc_title = doc_title.strip() or "Submitted Document"
     if not doc_text:
         return jsonify({"error": "bad_request", "message": "'text' field required with document content."}), 400
     if len(doc_text) > 30000:
@@ -302,13 +312,24 @@ def document_analysis_endpoint():
 @rate_limited
 def monitor_subscribe_endpoint():
     """Subscribes caller to receive updates when significant new evidence or corrections emerge."""
-    data = request.get_json(silent=True) or {}
-    claim = data.get("claim", "").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    claim = data.get("claim", "")
     verdict = data.get("verdict", "Unknown")
-    score = int(data.get("score", 50))
-    email = data.get("email", "").strip() or None
-    evidence_count = int(data.get("evidence_count", 0))
-
+    email = data.get("email", "")
+    try:
+        score = int(data.get("score", 50))
+        evidence_count = int(data.get("evidence_count", 0))
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({"error": "bad_request", "message": "score and evidence_count must be integers."}), 400
+    if not isinstance(claim, str) or not isinstance(verdict, str) or not isinstance(email, str):
+        return jsonify({"error": "bad_request", "message": "claim, verdict, and email must be strings."}), 400
+    claim, verdict, email = claim.strip(), verdict.strip() or "Unknown", email.strip()
+    if len(claim) > MAX_CLAIM_LENGTH or not 0 <= score <= 100 or not 0 <= evidence_count <= 1000:
+        return jsonify({"error": "bad_request", "message": "Claim, score, or evidence_count is outside the accepted range."}), 400
+    if email and (len(email) > 254 or "@" not in email or any(ch.isspace() for ch in email)):
+        return jsonify({"error": "bad_request", "message": "email must be a valid email address or blank."}), 400
     if not claim:
         return jsonify({"error": "bad_request", "message": "'claim' field required."}), 400
 
@@ -318,7 +339,8 @@ def monitor_subscribe_endpoint():
         res = subscribe_to_claim(session_id, claim, verdict, score, evidence_count, email)
         return jsonify(res)
     except Exception as exc:
-        return jsonify({"error": "server_error", "message": str(exc)}), 500
+        app.logger.exception("Claim monitor subscription failed")
+        return jsonify({"error": "server_error", "message": "Could not create monitor subscription."}), 500
 
 
 @app.route("/monitor/list", methods=["GET"])
@@ -339,14 +361,17 @@ def shareable_report_endpoint():
     claim = request.args.get("claim", "").strip()
     if not claim:
         return "<h3>Please provide a 'claim' parameter to generate a report.</h3>", 400
+    if len(claim) > MAX_CLAIM_LENGTH:
+        return "<h3>Claim exceeds the maximum accepted length.</h3>", 400
     try:
         from analysis_engine import analyze_claim
         from shareable_report import generate_shareable_report_html
         result = analyze_claim(claim, save_to_database=False)
         html = generate_shareable_report_html(result, claim)
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
-    except Exception as exc:
-        return f"<h3>Error generating report: {exc}</h3>", 500
+    except Exception:
+        app.logger.exception("Shareable report generation failed")
+        return "<h3>Report generation failed. Please retry later.</h3>", 500
 
 
 @app.route("/transparency", methods=["GET"])
@@ -363,13 +388,24 @@ def transparency_endpoint():
 @rate_limited
 def submit_correction_endpoint():
     """Accepts a human correction submission with primary evidence URL."""
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+    fields = ("claim_text", "reported_verdict", "suggested_verdict", "evidence_url", "rationale", "contact_email")
+    if any(key in data and not isinstance(data[key], str) for key in fields):
+        return jsonify({"error": "bad_request", "message": "Correction fields must be strings."}), 400
     claim_text = data.get("claim_text", "").strip()
     reported_verdict = data.get("reported_verdict", "").strip()
     suggested_verdict = data.get("suggested_verdict", "").strip()
     evidence_url = data.get("evidence_url", "").strip()
     rationale = data.get("rationale", "").strip()
     contact_email = data.get("contact_email", "").strip()
+    if len(claim_text) > MAX_CLAIM_LENGTH or len(rationale) > 10000 or len(evidence_url) > 2048 or len(contact_email) > 254:
+        return jsonify({"error": "bad_request", "message": "One or more correction fields exceed the maximum length."}), 400
+    from urllib.parse import urlparse
+    parsed_evidence_url = urlparse(evidence_url)
+    if parsed_evidence_url.scheme not in ("http", "https") or not parsed_evidence_url.netloc:
+        return jsonify({"error": "bad_request", "message": "evidence_url must be an absolute HTTP or HTTPS URL."}), 400
 
     if not claim_text or not evidence_url or not rationale:
         return jsonify({"error": "bad_request", "message": "Fields 'claim_text', 'evidence_url', and 'rationale' are required."}), 400
