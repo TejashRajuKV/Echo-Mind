@@ -45,7 +45,7 @@ class VerificationPolicyTests(unittest.TestCase):
 
     def test_syndicated_copies_across_domains_count_as_one_origin(self):
         result = evaluate_conflict_and_consensus([
-            source("mirror-a.example", "supports"),
+            {**source("mirror-a.example", "supports"), "cluster_id": "wire:shared-story"},
             {**source("mirror-b.example", "supports"), "cluster_id": "wire:shared-story"},
         ])
         self.assertEqual(result["independent_publisher_count"], 1)
