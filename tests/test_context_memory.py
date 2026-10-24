@@ -104,3 +104,11 @@ def test_alias_cannot_be_added_to_another_users_investigation(monkeypatch, tmp_p
         pass
     else:
         raise AssertionError("cross-session alias write should be rejected")
+
+
+def test_workspace_placeholder_is_not_shared_as_a_verdict(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    memory.record_investigation("s", "A manually saved but unverified claim", {
+        "classification": "Not yet verified", "score": None, "sources": []
+    })
+    assert memory.get_cached_analysis("A manually saved but unverified claim") is None
