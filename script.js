@@ -650,7 +650,7 @@ function initializeDemoFunctionality() {
                         <i class="fas fa-bell"></i> Activate Claim Monitoring
                     </button>
                     <div id="monitorStatusMsg" style="margin-top: 1rem;"></div>
-                `));
+                `);
 
                 document.getElementById('btnConfirmMonitor').addEventListener('click', async function() {
                     const email = document.getElementById('monitorEmailInput').value.trim();
