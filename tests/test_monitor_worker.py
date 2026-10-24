@@ -10,6 +10,7 @@ import monitor_worker
 
 class MonitorWorkerTests(unittest.TestCase):
     def setUp(self):
+        self.original_db_path = claim_monitor.MONITOR_DB_PATH
         self.tempdir = __import__("tempfile").TemporaryDirectory()
         claim_monitor.MONITOR_DB_PATH = Path(self.tempdir.name) / "monitors.db"
         conn = claim_monitor._get_monitor_conn()
@@ -34,6 +35,7 @@ class MonitorWorkerTests(unittest.TestCase):
 
     def tearDown(self):
         self.tempdir.cleanup()
+        claim_monitor.MONITOR_DB_PATH = self.original_db_path
 
     def test_successful_email_delivery_marks_notification_sent(self):
         sent = []
