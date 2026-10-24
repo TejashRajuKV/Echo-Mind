@@ -15,7 +15,13 @@ def extract_upload(file_storage):
         raise ValueError("Image file is empty.")
     if len(data)>MAX_IMAGE_BYTES:
         raise ValueError("Image exceeds the 8 MB limit.")
-    result=extract_image_text(data)
+    try:
+        result=extract_image_text(data)
+    except Exception as exc:
+        # pytesseract can be installed while the Tesseract executable is absent.
+        if type(exc).__name__ == "TesseractNotFoundError":
+            raise RuntimeError("Tesseract OCR executable is not installed or not on PATH.") from exc
+        raise
     result["bytes_processed"]=len(data)
     result["warning"]="OCR can misread names, numbers, dates and negations. Check the original image before verification."
     return result
