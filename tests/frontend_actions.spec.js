@@ -32,8 +32,8 @@ const analysis = {
 
 async function mockApi(page) {
   // Keep the suite hermetic and avoid waiting for external font/icon CDNs.
-  await page.route('https://**/*', route => route.abort());
-  await page.route(apiOrigin + '/**', async route => {
+  await page.context().route('https://**/*', route => route.abort());
+  await page.context().route(apiOrigin + '/**', async route => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     if (path === '/analyze') {
