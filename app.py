@@ -947,6 +947,23 @@ def claim_family_compare_endpoint():
     from incremental_verification import claim_family_similarity
     return jsonify(claim_family_similarity(data["claim_a"], data["claim_b"]))
 
+
+@app.route("/message/multilingual-match", methods=["POST"])
+@rate_limited
+def multilingual_match_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+        return jsonify({"error": "bad_request", "message": "text must be a string."}), 400
+    text_value = data["text"].strip()
+    if not text_value or len(text_value) > 5000:
+        return jsonify({"error": "bad_request", "message": "text must be non-empty and at most 5,000 characters."}), 400
+    try:
+        from incremental_verification import multilingual_match_candidates
+        return jsonify(multilingual_match_candidates(_derive_session_id(), text_value))
+    except Exception:
+        app.logger.exception("Multilingual matching failed")
+        return jsonify({"error": "server_error", "message": "Could not find related investigations."}), 500
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
