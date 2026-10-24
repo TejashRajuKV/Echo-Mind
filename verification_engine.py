@@ -127,8 +127,11 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
         # Authority factor 0.3 to 1.0
         weight = max(0.3, auth / 100.0)
         stance = s.get("stance", "neutral")
-        pub = str(s.get("domain") or s.get("publisher") or "unknown").strip().casefold()
-        cid = s.get("cluster_id", "standalone")
+        cid = str(s.get("cluster_id") or "standalone").strip().casefold()
+        raw_publisher = str(s.get("domain") or s.get("publisher") or "unknown").strip().casefold()
+        # Syndicated copies sharing a known non-standalone cluster count as one
+        # independent evidence origin even when republished on different domains.
+        pub = f"cluster:{cid}" if cid and cid != "standalone" else raw_publisher
 
         if s.get("is_echo_chamber", False):
             echo_count += 1
