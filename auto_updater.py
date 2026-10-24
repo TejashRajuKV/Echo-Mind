@@ -15,6 +15,10 @@ from typing import Dict, List, Optional
 import feedparser
 import sqlite3
 from dataclasses import dataclass
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +43,8 @@ class NewsItem:
 class AutoUpdater:
     def __init__(self):
         # API Configuration
-        self.newsapi_key = os.environ.get('NEWSAPI_KEY', 'YOUR_NEWS_API_KEY')
+        self.newsapi_key = os.environ.get('NEWSAPI_KEY', '')
+        self.freenewsapi_key = os.environ.get('FREE_NEWS_API_KEY') or os.environ.get('FREENEWSAPI_KEY', '')
         self.update_log_file = 'last_update.json'
         
         # News sources and their RSS feeds (India-focused)
@@ -220,6 +225,71 @@ class AutoUpdater:
             
         except Exception as e:
             logger.error(f"Error fetching from NewsAPI: {e}")
+            return []
+
+    def fetch_news_from_freenewsapi(self) -> List[NewsItem]:
+        """Fetch news from FreeNewsAPI (https://www.freenewsapi.io)"""
+        if not self.freenewsapi_key or self.freenewsapi_key.startswith('your_'):
+            logger.info("FreeNewsAPI key not configured, skipping FreeNewsAPI fetch")
+            return []
+        
+        try:
+            url = "https://api.freenewsapi.io/v1/news"
+            headers = {
+                'x-api-key': self.freenewsapi_key
+            }
+            params = {
+                'language': 'en',
+                'country': 'in'
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            news_items = []
+            articles = data.get('data', []) if isinstance(data.get('data'), list) else data.get('articles', [])
+            for article in articles:
+                try:
+                    published_date = datetime.now()
+                    pub_str = article.get('published_at') or article.get('publishedAt') or article.get('date')
+                    if pub_str:
+                        try:
+                            published_date = datetime.fromisoformat(pub_str.replace('Z', '+00:00'))
+                        except Exception:
+                            pass
+                    
+                    title = article.get('title', '')
+                    if not title:
+                        continue
+                        
+                    desc = article.get('description') or article.get('summary') or ''
+                    source_name = 'FreeNewsAPI'
+                    if isinstance(article.get('publisher'), dict):
+                        source_name = article['publisher'].get('name', 'FreeNewsAPI')
+                    elif isinstance(article.get('source'), dict):
+                        source_name = article['source'].get('name', 'FreeNewsAPI')
+                        
+                    url_link = article.get('link') or article.get('url', '')
+                    
+                    news_item = NewsItem(
+                        title=title,
+                        description=desc,
+                        url=url_link,
+                        source=source_name,
+                        published_date=published_date,
+                        category=self.categorize_news(title + ' ' + desc)
+                    )
+                    news_items.append(news_item)
+                except Exception as e:
+                    logger.warning(f"Error parsing FreeNewsAPI item: {e}")
+                    continue
+            
+            logger.info(f"Successfully fetched {len(news_items)} items from FreeNewsAPI")
+            return news_items
+            
+        except Exception as e:
+            logger.error(f"Error fetching from FreeNewsAPI: {e}")
             return []
 
     def categorize_news(self, text: str) -> str:
@@ -496,6 +566,10 @@ class AutoUpdater:
             # Fetch from NewsAPI if available
             newsapi_items = self.fetch_news_from_newsapi()
             all_news_items.extend(newsapi_items)
+            
+            # Fetch from FreeNewsAPI if available
+            freenews_items = self.fetch_news_from_freenewsapi()
+            all_news_items.extend(freenews_items)
             
             # Filter for recent items (last 24 hours)
             recent_items = [

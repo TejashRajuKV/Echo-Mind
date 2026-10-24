@@ -111,6 +111,71 @@ def search_fact_checks(search_text: str, limit: int = 3) -> List[str]:
         print(f"SQLite search error: {e}")
         return []
 
+
+def search_fact_checks_structured(search_text: str, limit: int = 3) -> List[Dict]:
+    """
+    Structured version of search_fact_checks.
+    Returns a list of dicts with keys: claim, verdict, source, url, explanation, created_at, type.
+    Used by the evidence-trail builder in analysis_engine so callers get full metadata.
+    """
+    if not search_text or not search_text.strip():
+        return []
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        words = search_text.lower().split()
+        stop_words = {
+            'the','and','or','but','in','on','at','to','for','of','with','by',
+            'is','are','was','were','a','an'
+        }
+        search_terms = [
+            w.replace("'", "").replace('"', '').replace(',', '')
+            for w in words if len(w) > 2 and w.lower() not in stop_words
+        ]
+        if not search_terms:
+            conn.close()
+            return []
+
+        # Build a relevance-scored query
+        conditions = [f"LOWER(claim) LIKE ?" for _ in search_terms[:5]]
+        scoring    = [f"CASE WHEN LOWER(claim) LIKE ? THEN {10 - i*2} ELSE 0 END"
+                      for i, _ in enumerate(search_terms[:5])]
+        params = []
+        for t in search_terms[:5]:
+            params.append(f"%{t}%")      # scoring params
+        for t in search_terms[:5]:
+            params.append(f"%{t}%")      # where params
+        params.append(limit)
+
+        query = f"""
+            SELECT claim, verdict, source, url, explanation, created_at,
+                   ({' + '.join(scoring)}) AS relevance_score
+            FROM fact_checks
+            WHERE {' OR '.join(conditions)}
+            ORDER BY relevance_score DESC
+            LIMIT ?
+        """
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                "claim":       row["claim"],
+                "name":        f"{row['claim']} — {row['verdict']} ({row['source']})",
+                "verdict":     row["verdict"],
+                "source":      row["source"],
+                "url":         row["url"] or "",
+                "date":        (row["created_at"] or "")[:10],
+                "explanation": row["explanation"] or "",
+                "type":        "database_record",
+            }
+            for row in rows
+        ]
+    except Exception as exc:
+        print(f"SQLite structured search error: {exc}")
+        return []
+
 def get_all_claims(limit: int = 10) -> List[Dict]:
     """Get all claims from the database for testing purposes"""
     try:
@@ -187,7 +252,7 @@ def add_fact_check_to_database(fact_check_data: dict) -> bool:
         
         conn.commit()
         conn.close()
-        print(f"✅ Added: {fact_check_data['claim'][:50]}... - {fact_check_data['verdict']}")
+        print(f"[OK] Added: {fact_check_data['claim'][:50]}... - {fact_check_data['verdict']}")
         return True
         
     except Exception as e:
@@ -196,29 +261,37 @@ def add_fact_check_to_database(fact_check_data: dict) -> bool:
 
 def save_analysis_to_database(claim: str, analysis_result: dict) -> bool:
     """
-    Save a user's claim and AI analysis result to the database.
-    This helps the system learn and improve over time.
+    Save a user's claim and AI analysis result to the analysis_logs table.
+    Keeps primary fact_checks table strictly for verified external institutions.
     """
     try:
-        # Extract relevant data from analysis result
         verdict = analysis_result.get("classification", "Unknown")
         explanation = analysis_result.get("explanation", "No explanation available.")
-        source = "Echo Mind AI"
-        
-        # Save to database using existing function
-        success = add_fact_check(
-            claim=claim,
-            verdict=verdict,
-            source=source,
-            explanation=explanation
-        )
-        
-        if success:
-            print(f"✅ Added new analysis to database: '{claim}' - {verdict}")
-        return success
-        
+        score = analysis_result.get("score", 0)
+
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim TEXT NOT NULL,
+                verdict TEXT NOT NULL,
+                score INTEGER,
+                explanation TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            INSERT INTO analysis_logs (claim, verdict, score, explanation)
+            VALUES (?, ?, ?, ?)
+        """, (claim, verdict, score, explanation))
+        conn.commit()
+        conn.close()
+        safe_claim = claim[:50].encode('ascii', errors='replace').decode('ascii')
+        print(f"[OK] Logged analysis: '{safe_claim}' - {verdict}")
+        return True
     except Exception as e:
-        print(f"Error saving analysis to database: {e}")
+        print(f"Error saving analysis to log: {e}")
         return False
 
 def get_database_stats() -> Dict:
@@ -308,7 +381,7 @@ def initialize_sample_data():
                 url=item["url"],
                 explanation=item["explanation"]
             )
-        print("✅ Sample data initialized successfully")
+        print("[OK] Sample data initialized successfully")
         return True
     except Exception as e:
         print(f"Error initializing sample data: {e}")

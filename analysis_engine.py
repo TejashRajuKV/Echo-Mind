@@ -14,6 +14,7 @@ Original file is located at
 
 import os
 import json
+import time
 from urllib.parse import urlparse
 
 # --- Configuration ---
@@ -22,23 +23,30 @@ from urllib.parse import urlparse
 #
 # IMPORTANT: Replace 'YOUR_PROJECT_ID' with your actual Google Cloud Project ID.
 # You can find your Project ID in the Google Cloud Console dashboard.
-# gcloud config set project YOUR_PROJECT_ID
+import os
+from dotenv import load_dotenv
 
-PROJECT_ID = "echo-mind-472808"
+# Load environment variables from .env file
+load_dotenv()
 
-LOCATION = "asia-south1"  # Mumbai, India - Better for Indian context and reduced latency
+PROJECT_ID = os.environ.get("PROJECT_ID", "echo-mind-472808")
+LOCATION = os.environ.get("LOCATION", "asia-south1")  # Mumbai, India - Better for Indian context and reduced latency
 
-from google.cloud import aiplatform
-import vertexai
-from vertexai.generative_models import GenerativeModel
-from google.cloud import bigquery
-import requests
-from datetime import datetime
+try:
+    from google.cloud import aiplatform
+    import vertexai
+    from vertexai.generative_models import GenerativeModel
+    from google.cloud import bigquery
 
-aiplatform.init(project=PROJECT_ID, location=LOCATION)
-vertexai.init(project=PROJECT_ID, location=LOCATION)
-
-print(f"✅ Vertex AI initialized for project: {PROJECT_ID}")
+    aiplatform.init(project=PROJECT_ID, location=LOCATION)
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
+    print(f"[OK] Vertex AI initialized for project: {PROJECT_ID}")
+    HAS_VERTEX_AI = True
+except Exception as exc:
+    print(f"[INFO] Vertex AI / BigQuery note: {exc}. Using Evidence Intelligence Engine.")
+    HAS_VERTEX_AI = False
+    GenerativeModel = None
+    bigquery = None
 
 GEMINI_MODEL = "gemini-2.5-pro" # Using Gemini 2.5 Pro for enhanced fact-checking capabilities
 TRUSTED_DOMAINS = [
@@ -51,13 +59,25 @@ TRUSTED_DOMAINS = [
 
 def load_current_context():
     """
-    Load current context from auto-updater system
+    Load current context from auto-updater system.
+    Returns {} on any failure so callers never crash.
     """
     try:
-        import json
-        if os.path.exists('current_context.json'):
-            with open('current_context.json', 'r') as f:
-                return json.load(f)
+        for path in ('current_context.json', 'api_current_context.json'):
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Annotate staleness so the AI can warn users
+                    last_updated = data.get('last_updated', '')
+                    if last_updated:
+                        try:
+                            from datetime import timezone
+                            ts = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                            delta = datetime.now(timezone.utc) - ts.astimezone(timezone.utc)
+                            data['context_age_hours'] = round(delta.total_seconds() / 3600, 1)
+                        except Exception:
+                            pass
+                    return data
     except Exception as e:
         print(f"Warning: Could not load current context: {e}")
     return {}
@@ -78,8 +98,8 @@ def get_current_date_info():
 
 def search_current_info(query, max_results=3):
     """
-    Search for current information using auto-updater context and fallback methods.
-    This provides recent context for political and time-sensitive claims.
+    Search for current information using auto-updater context, real-time sports data, and fallback methods.
+    This provides recent context for political, sports, and time-sensitive claims.
     """
     try:
         # Load current context from auto-updater
@@ -89,6 +109,41 @@ def search_current_info(query, max_results=3):
         # Add current date information
         date_info = get_current_date_info()
         current_info.append(f"Current Date: {date_info['current_date']} ({date_info['day_of_week']})")
+        
+        # Check for sports-related queries and add API-based real-time data
+        sports_keywords = ['captain', 'rcb', 'csk', 'mi', 'dc', 'kkr', 'rr', 'pbks', 'srh', 'gt', 'lsg', 'ipl', 'cricket']
+        if any(keyword in query.lower() for keyword in sports_keywords):
+            try:
+                # Try API-based real-time data first
+                from api_updater import APIDataUpdater
+                api_updater = APIDataUpdater()
+                api_data = api_updater.get_current_data(query)
+                current_info.extend(api_data)
+                
+                # Fallback to static sports data
+                if "No recent API data found" in str(api_data):
+                    try:
+                        from real_time_sports import get_current_sports_info, verify_sports_claim
+                        
+                        # Add sports context
+                        sports_context = get_current_sports_info(query)
+                        current_info.extend(sports_context)
+                        
+                        # If it looks like a captain claim, verify it
+                        if 'captain' in query.lower():
+                            verification = verify_sports_claim(query)
+                            if verification.get('current_info'):
+                                team_info = verification['current_info']
+                                current_info.append(f"✅ VERIFIED: {team_info['team_name']} Captain is {team_info['captain']}")
+                                if verification.get('status') == 'false':
+                                    current_info.append(f"❌ CLAIM FALSE: {verification['reason']}")
+                                elif verification.get('status') == 'correct':
+                                    current_info.append(f"✅ CLAIM CORRECT: {verification['reason']}")
+                    except ImportError:
+                        current_info.append("Static sports data not available")
+                        
+            except ImportError:
+                current_info.append("API system not available - using general knowledge")
         
         # For ALL topics, provide context from auto-updater or fallback
         # Comprehensive topic detection
@@ -125,11 +180,22 @@ def search_current_info(query, max_results=3):
             topic_updates = categorized_updates.get(query_topic, {})
             if topic_updates:
                 current_info.append(f"Recent {query_topic.title()} Updates Available: {len(topic_updates)} items")
-                # Add most recent updates (limit to 3 most recent)
-                sorted_updates = sorted(topic_updates.items(), 
+                # Add most recent updates with full source metadata
+                sorted_updates = sorted(topic_updates.items(),
                                       key=lambda x: x[1].get('date', ''), reverse=True)
-                for key, update in sorted_updates[:3]:
-                    current_info.append(f"• {update['title']} - {update['source']} ({update['date'][:10]})")
+                for _key, update in sorted_updates[:3]:
+                    date_str = update.get('date', '')[:10]
+                    src      = update.get('source', 'unknown source')
+                    url      = update.get('url', '')
+                    line     = f"• [{date_str}] {update.get('title', '')} — {src}"
+                    if url:
+                        line += f" ({url})"
+                    current_info.append(line)
+                # Staleness warning
+                age = current_context.get('context_age_hours')
+                if age is not None and age > 24:
+                    current_info.append(
+                        f"⚠️ Context data is {age:.0f} hours old — verify time-sensitive claims against live sources.")
             
             # Special handling for specific topics
             if query_topic == 'politics':
@@ -138,58 +204,57 @@ def search_current_info(query, max_results=3):
                                    if v.get('category') == 'politics' or v.get('type', '').endswith('_update')}
                 
                 # Look for state-specific updates
-            indian_states = {
-                'andhra pradesh': ('Chandrababu Naidu', 'TDP', 'June 2024'),
-                'telangana': ('A. Revanth Reddy', 'Congress', 'December 2023'),
-                'karnataka': ('Siddaramaiah', 'Congress', '2023'),
-                'tamil nadu': ('M.K. Stalin', 'DMK', '2021'),
-                'kerala': ('Pinarayi Vijayan', 'CPI(M)', '2021'),
-                'maharashtra': ('Eknath Shinde', 'Shiv Sena', '2022'),
-                'west bengal': ('Mamata Banerjee', 'AITC', '2011'),
-                'uttar pradesh': ('Yogi Adityanath', 'BJP', '2017'),
-                'gujarat': ('Bhupendra Patel', 'BJP', '2021'),
-                'rajasthan': ('Ashok Gehlot', 'Congress', '2018')
-            }
-            
-            # Look for state-specific updates
-            for state, (cm_name, party, since) in indian_states.items():
-                if state in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
-                    state_key = state.replace(' ', '_') + '_cm'
-                    if state_key in political_updates:
-                        update = political_updates[state_key]
-                        current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                # Look for state-specific updates from live context (no hardcoded names)
+                for state_key, update in political_updates.items():
+                    state_name = state_key.replace('_cm', '').replace('_', ' ')
+                    if state_name in query_lower and ('cm' in query_lower or 'chief minister' in query_lower):
+                        date_str = update.get('date', '')[:10]
+                        url      = update.get('url', '')
+                        line     = f"[{date_str}] {update.get('title','')} — {update.get('source','')}"
+                        if url:
+                            line += f" ({url})"
+                        current_info.append(line)
                         if update.get('state'):
-                            current_info.append(f"State: {update['state']}")
-                    else:
-                        # Fallback to known information
-                        current_info.append(f"Current CM of {state.title()}: {cm_name} ({party}) since {since}")
-                        current_info.append(f"Note: Please verify current status as political information changes frequently")
-                    break
-            
-            # Check for PM updates
-            if 'prime minister' in query_lower or ' pm ' in query_lower:
-                if 'prime_minister' in political_updates:
-                    update = political_updates['prime_minister']
-                    current_info.append(f"Latest News: {update['title']} - {update['source']} ({update['date'][:10]})")
+                            current_info.append(f"State covered: {update['state']}")
+                        break
                 else:
-                    current_info.append("Current PM: Narendra Modi (BJP) since 2014 - verify for any recent changes")
-            
-            # Check for election updates
-            if any(term in query_lower for term in ['election', 'vote', 'poll', 'ballot']):
-                election_updates = {k: v for k, v in political_updates.items() if 'election' in k}
-                if election_updates:
-                    for election_type, update in election_updates.items():
-                        current_info.append(f"Election Update: {update['title']} - {update['source']} ({update['date'][:10]})")
-            
-            # Check for party updates
-            major_parties = ['bjp', 'congress', 'aap', 'brs', 'tdp', 'ysrcp', 'dmk', 'aiadmk']
-            for party in major_parties:
-                if party in query_lower:
-                    party_key = f'{party}_update'
-                    if party_key in political_updates:
-                        update = political_updates[party_key]
-                        current_info.append(f"{party.upper()} Update: {update['title']} - {update['source']} ({update['date'][:10]})")
-                    break
+                    # No live data – explicitly warn instead of guessing
+                    current_info.append(
+                        "⚠️ No live political data found for this state. "
+                        "Verify current Chief Minister via https://eci.gov.in or a trusted news source."
+                    )
+
+                # PM updates from live context
+                if 'prime minister' in query_lower or ' pm ' in query_lower:
+                    pm_update = political_updates.get('prime_minister')
+                    if pm_update:
+                        date_str = pm_update.get('date', '')[:10]
+                        url      = pm_update.get('url', '')
+                        line     = f"[{date_str}] {pm_update.get('title','')} — {pm_update.get('source','')}"
+                        if url:
+                            line += f" ({url})"
+                        current_info.append(line)
+                    else:
+                        current_info.append(
+                            "⚠️ No live PM data found. Verify via https://pmindia.gov.in or a trusted source."
+                        )
+                
+                # Check for election updates
+                if any(term in query_lower for term in ['election', 'vote', 'poll', 'ballot']):
+                    election_updates = {k: v for k, v in political_updates.items() if 'election' in k}
+                    if election_updates:
+                        for election_type, update in election_updates.items():
+                            current_info.append(f"Election Update: {update['title']} - {update['source']} ({update['date'][:10]})")
+                
+                # Check for party updates
+                major_parties = ['bjp', 'congress', 'aap', 'brs', 'tdp', 'ysrcp', 'dmk', 'aiadmk']
+                for party in major_parties:
+                    if party in query_lower:
+                        party_key = f'{party}_update'
+                        if party_key in political_updates:
+                            update = political_updates[party_key]
+                            current_info.append(f"{party.upper()} Update: {update['title']} - {update['source']} ({update['date'][:10]})")
+                        break
             
             elif query_topic == 'health':
                 # Health-specific guidance
@@ -252,7 +317,7 @@ def search_current_info(query, max_results=3):
         print(f"Current info search error: {e}")
         return ["Unable to fetch current information - verify with recent reliable sources"]
 
-def misinformation_detector_and_explainer(text):
+def misinformation_detector_and_explainer(text, evidence_data=None, verification_data=None):
     if not text or text.strip() == "":
         return {"classification": "NoText", "explanation": "No explanation (empty input).", "score": 0, "tips": []}
 
@@ -267,63 +332,81 @@ def misinformation_detector_and_explainer(text):
     if current_context.get('trusted_sources'):
         sources_count = len(current_context.get('trusted_sources', []))
         context_info += f" | {sources_count} trusted sources monitored"
+
+    # Format pre-retrieved evidence for model reasoning
+    evidence_prompt_section = ""
+    if evidence_data and evidence_data.get("sources"):
+        evidence_prompt_section = "\nPRE-RETRIEVED EVIDENCE SOURCES (Retrieved prior to reasoning):\n"
+        for i, s in enumerate(evidence_data["sources"][:6], 1):
+            evidence_prompt_section += (
+                f"{i}. [{s.get('publisher','Unknown')}] (Authority: {s.get('authority_score',50)}/100, Tier: {s.get('authority_tier','')})\n"
+                f"   Title: {s.get('title','')}\n"
+                f"   Stance: {s.get('stance','neutral').upper()}\n"
+                f"   Excerpt: {s.get('excerpt','')}\n"
+                f"   URL: {s.get('url','')}\n"
+            )
+
+    subclaims_prompt_section = ""
+    consensus_prompt_section = ""
+    if verification_data:
+        subclaims = verification_data.get("subclaims", [])
+        if subclaims:
+            subclaims_prompt_section = "\nDECOMPOSED ATOMIC SUB-CLAIMS:\n"
+            for sc in subclaims:
+                subclaims_prompt_section += f"- {sc.get('text')} (Status: {sc.get('status')})\n"
+
+        cons = verification_data.get("consensus", {})
+        consensus_prompt_section = (
+            f"\nMULTI-SOURCE CONFLICT & CONSENSUS AUDIT:\n"
+            f"- Status: {cons.get('status', 'Unverified')}\n"
+            f"- Consensus: {cons.get('consensus_percentage', 0)}% in direction '{cons.get('consensus_direction')}'\n"
+            f"- Supporting Sources: {cons.get('supporting_sources_count', 0)}, Refuting: {cons.get('refuting_sources_count', 0)}\n"
+            f"- Conflict Detected: {cons.get('conflict_detected', False)}\n"
+            f"- Echo-Chamber Alert: {cons.get('echo_chamber_detected', False)}\n"
+        )
     
-    model = GenerativeModel(GEMINI_MODEL)
     prompt = f"""
-You are an expert fact-checking assistant with comprehensive knowledge across multiple domains. Your job is to provide accurate, detailed analysis of claims with special attention to current events and recent political changes.
+You are an expert, impartial fact-checking assistant in the Echo Mind Evidence Intelligence Engine.
+Your goal is to produce accurate, auditable verdicts by REASONING OVER THE RETRIEVED EVIDENCE FIRST, rather than guessing from memory.
 
-CURRENT CONTEXT:
+CURRENT SYSTEM CONTEXT:
 {context_info}
+{evidence_prompt_section}
+{subclaims_prompt_section}
+{consensus_prompt_section}
 
-CRITICAL CONTEXT FOR CURRENT CLAIMS:
-- ALWAYS verify political office holders against the most recent information
-- My knowledge cutoff is around April 2024, so I may not have information about very recent events
-- FOCUS ON INDIAN CONTEXT: Prioritize Indian political, social, and cultural context in analysis
-- Indian Politics Update (2024): Chandrababu Naidu (TDP) is the current CM of Andhra Pradesh since June 2024, NOT Jagan Mohan Reddy
-- For any political claims about "current" office holders, double-check against recent election results
-- Pay special attention to time-sensitive information that may have changed recently
-- For claims about events after April 2024, acknowledge knowledge limitations and suggest verification
-- Indian Regional Context: Consider state-specific politics, languages, cultures, and current affairs
-- Trusted Indian Sources: The Hindu, India Today, Times of India, Indian Express, NDTV, etc.
+FACT-CHECKING INSTRUCTIONS:
+1. Ground your verdict in the retrieved primary/secondary sources and conflict audit above.
+2. If credible fact-checkers or primary institutions refute the claim, mark it False.
+3. If reliable sources confirm it with high consensus, mark it Trustworthy.
+4. If sources conflict, if evidence is disputed, or if time-sensitive evidence is absent, mark it Suspicious.
+5. In your explanation, explicitly cite the sources provided in the evidence trail.
+6. Distinguish direct evidence from inference.
 
-ANALYSIS INSTRUCTIONS:
-1. Carefully examine the claim for factual accuracy, especially recent political changes
-2. For political claims about current office holders, verify against the most recent information
-3. Consider the context, source credibility, and supporting evidence
-4. Provide a thorough, multi-paragraph explanation (minimum 3-4 sentences)
-5. Include specific details about WHY the claim is classified as it is
-6. Mention any scientific consensus, expert opinions, or reliable sources that support or contradict the claim
-7. If the claim is false or suspicious, explain what makes it problematic and provide the correct current information
-8. If the claim is trustworthy, explain what evidence supports it
-9. For outdated information, clearly state what the current accurate information is
+CLASSIFICATION:
+- Trustworthy  : Supported by verifiable, current, credible sources or scientific consensus.
+- Suspicious   : Insufficient, mixed, or conflicting evidence; or time-sensitive without current verification.
+- False        : Demonstrably incorrect or debunked by credible sources.
 
-CLASSIFICATION RULES:
-- **Trustworthy**: Factually accurate claims supported by credible sources, scientific consensus, or established facts
-- **Suspicious**: Claims that lack sufficient evidence, are misleading, or contain partial truths mixed with speculation
-- **False**: Claims that are demonstrably incorrect, debunked by experts, contain clear misinformation, OR are outdated political information
-- **SPECIAL**: Political office holder claims must be verified against current (2024) information
-- If the text is from trusted news outlets (BBC, Reuters, The Hindu, NY Times, etc.), lean towards Trustworthy unless the content itself is clearly problematic
-
-Claim to analyze:
+Claim to analyse:
 {text}
 
-Provide your response in JSON format with these keys:
-- "classification": one of [Trustworthy, Suspicious, False]
-- "explanation": a detailed, comprehensive explanation (3-5 sentences minimum) that thoroughly explains your reasoning, includes relevant context, provides specific details about why this classification was chosen, and if applicable, states the current correct information
-- "score": confidence score from 0-100 (where 100 means completely certain)
-- "tips": array of 2-4 specific, actionable tips for fact-checking similar claims, especially emphasizing verification of current information for political claims
-
-IMPORTANT: Make the explanation detailed and educational. Don't just state the classification - explain the reasoning, context, provide current accurate information when relevant, and give valuable insights that help users understand the topic better.
+Respond with ONLY a JSON object (no markdown fences) with these exact keys:
+- "classification" : one of [Trustworthy, Suspicious, False]
+- "explanation"    : 3-5 sentence educational explanation covering (i) why you chose this classification, (ii) the key evidence and publishers cited, (iii) what a user should do to verify further
+- "score"          : integer 0-100 representing confidence based on evidence quality
+- "tips"           : array of 2-4 actionable fact-checking tips specific to this claim type
+- "sources_used"   : array of objects, each with {{"name": ..., "url": ..., "date": ..., "type": "direct_evidence|consensus|ai_inference"}}
+- "staleness_warning": true/false — set true if this claim is time-sensitive and may have changed
 """
     response = None
     try:
+        model = GenerativeModel(GEMINI_MODEL)
         response = model.generate_content(prompt)
         if not response.text:
             raise ValueError("Model returned an empty response.")
 
         output = response.text.strip()
-
-        # Clean markdown fences
         if output.startswith("```json"):
             output = output[7:].strip()
         elif output.startswith("```"):
@@ -331,13 +414,53 @@ IMPORTANT: Make the explanation detailed and educational. Don't just state the c
         if output.endswith("```"):
             output = output[:-3].strip()
 
-        return json.loads(output)
+        parsed = json.loads(output)
+        return parsed
     except Exception as e:
-        raw_response_text = response.text if response and hasattr(response, 'text') else "No response from model."
-        print(f"Error parsing model response JSON: {e}\nRaw response: {raw_response_text}")
-        return {"classification": "Error", "explanation": f"Failed to parse model response: {e}", "score": 0, "tips": []}
+        print(f"Vertex AI inference note: {e}. Utilizing deterministic Evidence & Verification Engine.")
+        # Graceful deterministic fallback from verified evidence
+        if verification_data:
+            cred = verification_data.get("credibility", {})
+            cons = verification_data.get("consensus", {})
+            sources = evidence_data.get("sources", []) if evidence_data else []
+            return {
+                "classification": cred.get("verdict", "Suspicious"),
+                "explanation": (
+                    f"Evidence Intelligence Analysis: {cons.get('detail', 'Evaluated against multi-source evidence repository.')} "
+                    f"Consensus audit shows {cons.get('supporting_sources_count', 0)} supporting and {cons.get('refuting_sources_count', 0)} refuting sources."
+                ),
+                "score": cred.get("score", 50),
+                "tips": [
+                    "Examine the primary sources cited in the evidence trail below.",
+                    "Verify if breaking developments have surfaced on verified news outlets.",
+                    "Be alert to syndicated echo chambers republishing unverified wire reports."
+                ],
+                "sources_used": [
+                    {
+                        "name": s.get("publisher", "Source"),
+                        "url": s.get("url", ""),
+                        "date": s.get("date", ""),
+                        "type": "direct_evidence" if s.get("authority_score", 0) >= 80 else "secondary_reporting"
+                    }
+                    for s in sources[:4]
+                ],
+                "staleness_warning": False,
+            }
+        return {
+            "classification": "Suspicious",
+            "explanation": f"Automated analysis based on available context: {e}",
+            "score": 50,
+            "tips": ["Verify this claim with multiple independent primary sources."],
+            "sources_used": [],
+            "staleness_warning": False,
+        }
 
-bq_client = bigquery.Client(project=PROJECT_ID)
+bq_client = None
+if HAS_VERTEX_AI and bigquery:
+    try:
+        bq_client = bigquery.Client(project=PROJECT_ID)
+    except Exception as exc:
+        print(f"[INFO] BigQuery client unavailable ({exc}). Using local SQLite database.")
 
 DATASET_ID = "factchecks"
 TABLE_ID = "fact_checks"
@@ -428,7 +551,16 @@ def credibility_checker(text, top_k=3):
             
             job_config = bigquery.QueryJobConfig(query_parameters=params)
             rows = bq_client.query(query, job_config=job_config).result()
-            results = [f"{r.claim} — {r.verdict} ({r.source}) {r.url}" for r in rows if r.relevance_score >= 50]
+            results = [
+                {
+                    "claim":   r.claim,
+                    "verdict": r.verdict,
+                    "source":  r.source,
+                    "url":     r.url or "",
+                    "type":    "database_record",
+                }
+                for r in rows if r.relevance_score >= 50
+            ]
             
             if results:
                 print(f"✅ Found {len(results)} relevant results from BigQuery")
@@ -436,25 +568,21 @@ def credibility_checker(text, top_k=3):
     except Exception as e:
         print(f"BigQuery error: {e}. Falling back to local SQLite database.")
     
-    # Fallback to local SQLite database with improved search
+    # Fallback to local SQLite database with structured evidence objects
     try:
-        from database_helper import search_fact_checks
-        results = search_fact_checks(text, top_k)
-        
-        # Filter results for relevance
+        from database_helper import search_fact_checks_structured
+        results = search_fact_checks_structured(text, top_k)
         if results:
-            relevant_results = filter_relevant_evidence(text, results)
-            if relevant_results:
-                print(f"✅ Found {len(relevant_results)} relevant results from local database")
-                return relevant_results
-            else:
-                print("ℹ️ No relevant matches found - showing generic guidance instead")
-                return []
-        else:
-            print("ℹ️ No matching fact-checks found in local database")
-            return []
-    except Exception as e:
-        print(f"SQLite error: {e}")
+            relevant = filter_relevant_evidence(text, [r["claim"] for r in results])
+            relevant_claims = set(relevant)
+            filtered = [r for r in results if r["claim"] in relevant_claims]
+            if filtered:
+                print(f"✅ Found {len(filtered)} relevant results from local database")
+                return filtered
+        print("ℹ️ No relevant fact-checks found in local database")
+        return []
+    except Exception as exc:
+        print(f"SQLite evidence error: {exc}")
         return []
 
 def educational_insights():
@@ -513,98 +641,230 @@ def personalized_tip(category):
 
 def analyze_claim(text, current_points=0, current_badges=None, save_to_database=True):
     """
-    Analyzes a claim by checking it with the Gemini model, searching a BigQuery
-    database, and providing educational and personalized feedback. It is a
-    stateless function that takes the current user state and returns the
-    analysis along with the new state.
+    Analyzes a claim using the Evidence Intelligence Engine:
+    1. Gathers multi-source evidence (Google Fact Check, FreeNewsAPI, local DB, auto-updater)
+    2. Decomposes claim into atomic sub-claims
+    3. Runs multi-source conflict & consensus audit
+    4. Computes explainable multi-factor credibility score
+    5. Injects verified evidence into Gemini for grounded reasoning
+    6. Returns structured, auditable evidence cards and analytics
     """
     if current_badges is None:
         current_badges = []
 
-    # Get current information for time-sensitive claims
-    current_info = search_current_info(text)
+    start_time = time.time()
+
+    # Step 1: Pre-retrieval Evidence Intelligence Engine
+    try:
+        from evidence_engine import gather_evidence_pipeline
+        evidence_data = gather_evidence_pipeline(text)
+    except Exception as exc:
+        print(f"[WARN] Evidence pipeline error: {exc}")
+        evidence_data = {
+            "sources": [],
+            "stance_summary": {"supports": 0, "refutes": 0, "neutral": 0},
+            "average_authority_score": 50,
+            "has_primary_evidence": False,
+        }
+
+    # Step 2: Multi-Source Verification & Conflict Detection
+    try:
+        from verification_engine import verify_claim_multisource
+        verification_data = verify_claim_multisource(text, evidence_data)
+    except Exception as exc:
+        print(f"[WARN] Verification engine error: {exc}")
+        verification_data = {
+            "subclaims": [{"id": "subclaim_1", "text": text, "status": "Unverified", "sources_count": 0, "top_sources": []}],
+            "consensus": {
+                "status": "Unverified / Developing",
+                "conflict_detected": False,
+                "consensus_direction": "unknown",
+                "consensus_percentage": 0.0,
+                "weighted_support": 0.0,
+                "weighted_refute": 0.0,
+                "supporting_sources_count": 0,
+                "refuting_sources_count": 0,
+                "neutral_sources_count": 0,
+                "echo_chamber_detected": False,
+                "detail": "Automated verification encountered an issue; falling back to heuristic analysis."
+            },
+            "credibility": {
+                "score": 50,
+                "verdict": "Suspicious",
+                "confidence": "Moderate",
+                "breakdown": {
+                    "source_convergence_score": 50,
+                    "evidence_authority_score": 50,
+                    "publisher_independence_score": 50
+                },
+                "formula_explanation": "Standard fallback scoring."
+            }
+        }
+
+    # Step 3: Model reasoning grounded in the verified evidence
+    model_analysis = misinformation_detector_and_explainer(text, evidence_data, verification_data)
+
+    # Reconcile model verdict with deterministic evidence metrics
+    cred = verification_data.get("credibility", {})
+    cons = verification_data.get("consensus", {})
     
-    # Enhance the text with current context for better AI analysis
-    enhanced_text = text
-    if current_info and any('Current Info:' in info for info in current_info):
-        context = " | ".join(current_info)
-        enhanced_text = f"{text} | CONTEXT: {context}"
-    
-    model_analysis = misinformation_detector_and_explainer(enhanced_text)
-    evidence = credibility_checker(text)
+    verdict = model_analysis.get("classification")
+    if not verdict or verdict in ["Error", "NoText", "N/A"]:
+        verdict = cred.get("verdict", "Suspicious")
+
+    # Score: if model gave valid non-zero score, blend with multi-factor evidence score
+    model_score = model_analysis.get("score")
+    if isinstance(model_score, (int, float)) and model_score > 0:
+        score = int(round((model_score * 0.4) + (cred.get("score", 50) * 0.6)))
+    else:
+        score = cred.get("score", 50)
+
+    explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on multi-source evidence.")
     tips = educational_insights()
-
-    verdict = model_analysis.get("classification", "N/A")
-    explanation = model_analysis.get("explanation", "No explanation provided.")
-    score = model_analysis.get("score", "N/A")
     model_tips = model_analysis.get("tips", [])
-
     all_tips = sorted(list(set(tips + model_tips)))
 
-    # Gamify
+    # Gamification
     new_points = current_points + 10
-    new_badges = list(current_badges) # Create a copy to avoid modifying the original list
+    new_badges = list(current_badges)
     badge_earned = None
     if new_points >= 50 and "Truth Beginner" not in new_badges:
         new_badges.append("Truth Beginner")
         badge_earned = "Truth Beginner"
+    if new_points >= 100 and "Fact Detective" not in new_badges:
+        new_badges.append("Fact Detective")
+        badge_earned = "Fact Detective"
 
     # Personalization
     category = categorize_text(text)
     tip = personalized_tip(category)
 
-    # Prepare evidence display with current information and database evidence
-    evidence_parts = []
-    
-    # Add current information if available
-    if current_info and any('Current Info:' in info for info in current_info):
-        evidence_parts.extend(current_info)
-    
-    # Add database evidence
-    if evidence:
-        evidence_parts.extend(evidence)
-    
-    # Create final evidence text
-    if evidence_parts:
-        evidence_text = '; '.join(evidence_parts)
+    # -----------------------------------------------------------------------
+    # Build rich, auditable evidence trail & cards
+    # -----------------------------------------------------------------------
+    evidence_cards = []
+    evidence_trail = []
+
+    # Include top sources from evidence engine
+    for s in evidence_data.get("sources", []):
+        card = {
+            "title":           s.get("title", ""),
+            "publisher":       s.get("publisher", "Unknown Publisher"),
+            "domain":          s.get("domain", ""),
+            "url":             s.get("url", ""),
+            "date":            s.get("date", ""),
+            "stance":          s.get("stance", "neutral"),
+            "authority_score": s.get("authority_score", 50),
+            "authority_tier":  s.get("authority_tier", "General"),
+            "excerpt":         s.get("excerpt", ""),
+            "is_syndicated":   s.get("is_syndicated", False),
+            "echo_count":      s.get("echo_count", 0),
+        }
+        evidence_cards.append(card)
+        evidence_trail.append({
+            "name":    f"{s.get('publisher','Source')}: {s.get('title','')}",
+            "url":     s.get("url", ""),
+            "date":    s.get("date", ""),
+            "type":    s.get("source_type", "evidence_source"),
+            "verdict": s.get("stance", ""),
+        })
+
+    # Summary text representation
+    if evidence_cards:
+        evidence_text = f"Analyzed {len(evidence_cards)} sources ({cons.get('supporting_sources_count',0)} supporting, {cons.get('refuting_sources_count',0)} refuting). Top authority: {evidence_cards[0]['publisher']} ({evidence_cards[0]['authority_score']}/100)."
     else:
-        # Provide category-specific guidance when no evidence found
-        if category == "health":
-            evidence_text = "For health claims, consult WHO, CDC, FDA, or peer-reviewed medical journals for verified information."
-        elif category == "politics":
-            evidence_text = "For political claims, cross-reference with multiple reputable news sources and official government statements. Check current office holders as political information changes frequently."
-        elif category == "finance":
-            evidence_text = "For financial claims, verify through official economic data and established financial institutions."
-        else:
-            evidence_text = "No specific fact-checks found in database. Verify through multiple credible sources and expert consensus."
-    
-    # Prepare result
+        evidence_text = "No direct fact-checks found. Verification derived from domain analysis and contextual corroboration."
+
+    # Record claim evolution mutation history
+    try:
+        from claim_evolution import record_claim_evolution, get_claim_evolution_timeline
+        record_claim_evolution(
+            claim_text=text,
+            verdict=verdict,
+            score=score,
+            evidence_count=len(evidence_cards),
+            primary_source=evidence_cards[0]["publisher"] if evidence_cards else "Synthesized",
+            category=category,
+        )
+        evolution_history = get_claim_evolution_timeline(text)
+    except Exception as exc:
+        print(f"[WARN] Claim evolution error: {exc}")
+        evolution_history = {"has_evolution_history": False, "timeline": []}
+
+    # Indian-Language Verification Check & Regional Sources
+    try:
+        from indian_language_engine import detect_indian_language
+        lang_info = detect_indian_language(text)
+    except Exception as exc:
+        print(f"[WARN] Language engine error: {exc}")
+        lang_info = {"is_indian_language": False, "language_name": "English"}
+
+    # Generate Google ClaimReview Schema.org JSON-LD
+    try:
+        from shareable_report import generate_claim_review_jsonld
+        claimreview_schema = generate_claim_review_jsonld({
+            "claim": text,
+            "classification": verdict,
+            "score": score,
+            "explanation": explanation,
+            "evidence_sources": evidence_cards,
+        })
+    except Exception as exc:
+        print(f"[WARN] ClaimReview schema generation error: {exc}")
+        claimreview_schema = {}
+
+    # Log telemetry for Quality & Transparency Observability
+    try:
+        from transparency_dashboard import log_verification_telemetry
+        log_verification_telemetry(
+            claim_text=text,
+            verdict=verdict,
+            score=score,
+            citation_count=len(evidence_cards),
+            has_primary=evidence_data.get("has_primary_evidence", False),
+            conflict_detected=cons.get("conflict_detected", False),
+            retrieval_success=len(evidence_cards) > 0,
+            latency_ms=int((time.time() - start_time) * 1000),
+            language=lang_info.get("language_code", "en"),
+        )
+    except Exception as exc:
+        pass
+
+    staleness_warning = model_analysis.get("staleness_warning", False)
+
     result = {
-        "classification": verdict,
-        "score": score,
-        "explanation": explanation,
-        "evidence": evidence_text,
-        "tips": all_tips,
+        "classification":        verdict,
+        "score":                 score,
+        "explanation":           explanation,
+        "evidence":              evidence_text,
+        "evidence_sources":      evidence_cards,
+        "subclaims":             verification_data.get("subclaims", []),
+        "consensus":             cons,
+        "credibility_breakdown": cred.get("breakdown", {}),
+        "evidence_trail":        evidence_trail,
+        "staleness_warning":     staleness_warning,
+        "tips":                  all_tips,
+        "language_info":         lang_info,
+        "claim_evolution":       evolution_history,
+        "claimreview_schema":    claimreview_schema,
         "gamification": {
-            "points": new_points,
-            "badges": new_badges if new_badges else [],
-            "badge_earned": badge_earned
+            "points":       new_points,
+            "badges":       new_badges,
+            "badge_earned": badge_earned,
         },
         "personalization": {
             "category": category.capitalize(),
-            "tip": tip
-        }
+            "tip":      tip,
+        },
     }
-    
-    # Save analysis to database for future reference (learning system)
+
     if save_to_database and text and text.strip():
         try:
             from database_helper import save_analysis_to_database
             save_analysis_to_database(text, result)
         except Exception as e:
             print(f"Warning: Could not save to database: {e}")
-            # Continue without failing - this is optional functionality
-    
+
     return result
 
 if __name__ == '__main__':

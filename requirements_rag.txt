@@ -1,0 +1,87 @@
+# Echo Mind RAG System Requirements
+# Core dependencies for Retrieval-Augmented Generation functionality
+
+# Google Cloud and Vertex AI
+google-cloud-aiplatform>=1.42.0
+vertexai>=1.42.0
+google-cloud-core>=2.4.0
+google-auth>=2.16.0
+
+# Data processing and storage
+numpy>=1.24.0
+pandas>=2.0.0
+sqlite3  # Built-in Python module
+feedparser>=6.0.10
+requests>=2.28.0
+
+# Vector operations and embeddings
+scikit-learn>=1.3.0
+scipy>=1.10.0
+
+# Utilities
+python-dateutil>=2.8.2
+typing-extensions>=4.5.0
+
+# Logging and monitoring
+python-json-logger>=2.0.7
+
+# Web scraping (for enhanced news fetching)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Optional: Enhanced text processing
+nltk>=3.8.0
+textblob>=0.17.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+mock>=5.0.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Progress bars for long operations
+tqdm>=4.65.0
+
+# JSON schema validation
+jsonschema>=4.17.0
+
+# HTTP client with retry logic
+httpx>=0.24.0
+
+# Async support
+aiohttp>=3.8.0
+asyncio  # Built-in Python module
+
+# Text similarity and NLP
+sentence-transformers>=2.2.0  # Alternative embedding model
+transformers>=4.30.0  # Hugging Face transformers
+
+# Data validation
+pydantic>=2.0.0
+
+# Configuration management
+pyyaml>=6.0
+
+# Schedule jobs (for automated updates)
+schedule>=1.2.0
+APScheduler>=3.10.0
+
+# Memory optimization for large vectors
+memory-profiler>=0.61.0
+psutil>=5.9.0
+
+# Enhanced error tracking
+sentry-sdk>=1.28.0
+
+# Web framework (for future API endpoints)
+fastapi>=0.100.0
+uvicorn>=0.22.0
+
+# Database connection pooling
+sqlalchemy>=2.0.0
+
+# Caching for performance
+redis>=4.6.0
+cachetools>=5.3.0

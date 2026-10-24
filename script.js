@@ -70,65 +70,386 @@ function initializeDemoFunctionality() {
         return;
     }
 
-    const getClassificationClass = (classification) => {
-        if (classification === 'Trustworthy') return 'classification-trustworthy';
-        if (classification === 'False') return 'classification-false';
-        return 'classification-suspicious';
+    function getSessionId() {
+        let sid = localStorage.getItem('echomind_session_id');
+        if (!sid) {
+            sid = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
+            localStorage.setItem('echomind_session_id', sid);
+        }
+        return sid;
+    }
+
+    function isLocal() {
+        const h = window.location.hostname;
+        const proto = window.location.protocol;
+        // file:// = opened directly from disk; localhost / 127.0.0.1 = local dev server
+        return proto === 'file:' || h === 'localhost' || h === '127.0.0.1' || h === '';
+    }
+
+    function getBaseUrl() {
+        return isLocal() ? 'http://localhost:8080' : 'https://echo-mind-191043917366.us-central1.run.app';
+    }
+
+    function getApiUrl() {
+        return getBaseUrl() + '/analyze';
+    }
+
+    const getClassificationTheme = (classification) => {
+        const c = (classification || '').toLowerCase();
+        if (c.includes('trustworthy') || c.includes('true')) {
+            return {
+                heroClass: 'verdict-trustworthy',
+                chipClass: 'chip-consensus-supported',
+                icon: '<i class="fas fa-check-circle"></i>',
+                title: 'Trustworthy',
+                tag: 'VERIFIED CREDIBLE'
+            };
+        }
+        if (c.includes('false') || c.includes('debunked')) {
+            return {
+                heroClass: 'verdict-false',
+                chipClass: 'chip-consensus-refuted',
+                icon: '<i class="fas fa-times-circle"></i>',
+                title: 'False Claim',
+                tag: 'REFUTED / MISINFORMATION'
+            };
+        }
+        return {
+            heroClass: 'verdict-suspicious',
+            chipClass: 'chip-consensus-conflict',
+            icon: '<i class="fas fa-exclamation-triangle"></i>',
+            title: 'Suspicious / Contested',
+            tag: 'NEEDS SCRUTINY'
+        };
     };
 
-    // This function builds the HTML from the real API response
+    // Full Evidence Intelligence Engine HTML Renderer
     function displayAnalysisResult(data) {
+        const theme = getClassificationTheme(data.classification);
+        const consensus = data.consensus || {};
+        const sources = data.evidence_sources || [];
+        const subclaims = data.subclaims || [];
+        const breakdown = data.credibility_breakdown || {};
+        const gamification = data.gamification || { points: 0, badges: [] };
+        const personalization = data.personalization || { category: 'General', tip: '' };
+
+        // Consensus stance calculations for bar
+        const supCount = consensus.supporting_sources_count || 0;
+        const refCount = consensus.refuting_sources_count || 0;
+        const neuCount = consensus.neutral_sources_count || 0;
+        const totalCount = Math.max(1, supCount + refCount + neuCount);
+        const supPct = Math.round((supCount / totalCount) * 100);
+        const refPct = Math.round((refCount / totalCount) * 100);
+        const neuPct = Math.max(0, 100 - supPct - refPct);
+
+        let consensusChipStyle = 'chip-consensus-unverified';
+        if (consensus.conflict_detected) {
+            consensusChipStyle = 'chip-consensus-conflict';
+        } else if (consensus.consensus_direction === 'supported') {
+            consensusChipStyle = 'chip-consensus-supported';
+        } else if (consensus.consensus_direction === 'refuted') {
+            consensusChipStyle = 'chip-consensus-refuted';
+        }
+
         return `
-            <div class="demo-result" style="text-align: left;">
-                <h3>🟢 AI Fact-Check Analysis:</h3>
-                <div style="margin: 1rem 0; padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #4299e1;">
-                    <p><strong>Classification:</strong> <span class="${getClassificationClass(data.classification)}" style="font-weight: bold; font-size: 1.1em;">${data.classification}</span></p>
-                    <p><strong>Confidence Score:</strong> ${data.score}/100</p>
-                </div>
-                
-                <div style="margin: 1.5rem 0;">
-                    <h4 style="margin-bottom: 0.75rem; color: #2d3748;">📋 Detailed Analysis:</h4>
-                    <div style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.6;">
-                        ${data.explanation}
+            <div class="evidence-dashboard" style="text-align: left;">
+                <!-- 1. Hero Verdict Card -->
+                <div class="verdict-hero ${theme.heroClass}">
+                    <div class="verdict-badge-group">
+                        <div class="verdict-icon">
+                            ${theme.icon}
+                        </div>
+                        <div>
+                            <div class="verdict-label">${theme.tag}</div>
+                            <div class="verdict-title">${theme.title}</div>
+                            ${data.staleness_warning ? `
+                                <div style="margin-top: 0.35rem; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 6px; background: #fff1f2; color: #e11d48; font-size: 0.78rem; font-weight: 700;">
+                                    <i class="fas fa-clock"></i> Time-sensitive claim — verify with live sources
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
-                </div>
-                
-                <div style="margin: 1.5rem 0;">
-                    <h4 style="margin-bottom: 0.75rem; color: #2d3748;">📌 Supporting Evidence:</h4>
-                    <div style="background: #f7fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        ${data.evidence}
+                    <div class="score-radial">
+                        <div class="score-number">${data.score || 50}</div>
+                        <div class="score-label">Credibility Score</div>
                     </div>
                 </div>
 
-                <div style="margin: 1.5rem 0;">
-                    <h4 style="margin-bottom: 0.75rem; color: #2d3748;">📝 Educational Guidelines:</h4>
-                    <div style="background: #fffbf0; padding: 1rem; border-radius: 8px; border: 1px solid #fed7aa;">
-                        <ul style="margin: 0; padding-left: 1.5rem; line-height: 1.5;">
-                            ${data.tips.slice(0, 6).map(tip => `<li style="margin: 0.5rem 0;">${tip}</li>`).join('')}
-                        </ul>
-                        ${data.tips.length > 6 ? `
-                            <details style="margin-top: 1rem;">
-                                <summary style="cursor: pointer; font-weight: bold; color: #d69e2e;">Show More Tips (${data.tips.length - 6} additional)</summary>
-                                <ul style="margin: 0.5rem 0; padding-left: 1.5rem; line-height: 1.5;">
-                                    ${data.tips.slice(6).map(tip => `<li style="margin: 0.5rem 0;">${tip}</li>`).join('')}
-                                </ul>
-                            </details>
+                <!-- Indian Language Verification Banner (Vernacular Preservation) -->
+                ${data.language_info && data.language_info.is_indian_language ? `
+                    <div class="indian-lang-banner">
+                        <div class="indian-lang-header">
+                            <div class="lang-title">
+                                <i class="fas fa-language" style="color: #d97706;"></i>
+                                Native ${data.language_info.language_name} (${data.language_info.native_name}) Preserved
+                            </div>
+                            <span class="lang-badge">Regional Source Verification Active</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: #78350f;">
+                            Colloquial vernacular meaning preserved. Corroborated with regional trusted publishers:
+                        </div>
+                        <div class="regional-chips">
+                            ${(data.language_info.regional_sources || []).map(r => `
+                                <span class="regional-chip"><i class="fas fa-shield-alt"></i> ${r.name} (${r.authority}/100)</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Action Toolbar for Extensions -->
+                <div class="action-toolbar">
+                    <button class="action-btn btn-primary-action" id="btnViewEvolution">
+                        <i class="fas fa-history"></i> Evolution Timeline (${data.claim_evolution ? (data.claim_evolution.total_variants || 1) : 1})
+                    </button>
+                    <button class="action-btn" id="btnMonitorClaim">
+                        <i class="fas fa-bell"></i> Follow Updates (Opt-in)
+                    </button>
+                    <button class="action-btn" id="btnShareReport">
+                        <i class="fas fa-file-alt"></i> Shareable Report &amp; ClaimReview
+                    </button>
+                    <button class="action-btn" id="btnOpenDocAnalysis">
+                        <i class="fas fa-file-pdf"></i> Research Document Scan
+                    </button>
+                    <button class="action-btn" id="btnOpenTransparency">
+                        <i class="fas fa-chart-line"></i> Quality Observability
+                    </button>
+                    <button class="action-btn" id="btnSubmitCorrection">
+                        <i class="fas fa-edit"></i> Submit Correction
+                    </button>
+                </div>
+
+                <!-- 2. Multi-Source Conflict & Consensus Audit -->
+                <div class="consensus-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fas fa-balance-scale" style="color: #6366f1;"></i>
+                            Multi-Source Verification & Conflict Audit
+                        </div>
+                        <span class="consensus-chip ${consensusChipStyle}">
+                            ${consensus.status || 'Verified Multi-Source'}
+                        </span>
+                    </div>
+
+                    <p style="color: #475569; font-size: 0.92rem; line-height: 1.5; margin: 0 0 0.75rem 0;">
+                        ${consensus.detail || 'Aggregated reporting across independent authoritative publishers.'}
+                    </p>
+
+                    <!-- Stance Bar -->
+                    <div class="consensus-bar-wrap">
+                        <div class="consensus-bar">
+                            <div class="bar-segment-support" style="width: ${supPct}%" title="Supporting: ${supCount}"></div>
+                            <div class="bar-segment-refute" style="width: ${refPct}%" title="Refuting: ${refCount}"></div>
+                            <div class="bar-segment-neutral" style="width: ${neuPct}%" title="Neutral Context: ${neuCount}"></div>
+                        </div>
+                        <div class="bar-legend">
+                            <div class="legend-item"><span class="legend-dot dot-support"></span> Supports (${supCount})</div>
+                            <div class="legend-item"><span class="legend-dot dot-refute"></span> Refutes (${refCount})</div>
+                            <div class="legend-item"><span class="legend-dot dot-neutral"></span> Neutral Context (${neuCount})</div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Badges -->
+                    <div class="consensus-metrics">
+                        <div class="metric-pill">
+                            <i class="fas fa-building" style="color: #6366f1;"></i>
+                            <strong>${consensus.independent_publisher_count || sources.length || 1}</strong> Independent Publishers
+                        </div>
+                        <div class="metric-pill">
+                            <i class="fas fa-shield-alt" style="color: #10b981;"></i>
+                            Domain Authority Weighted
+                        </div>
+                        ${consensus.echo_chamber_detected ? `
+                            <div class="metric-pill echo-alert">
+                                <i class="fas fa-bullhorn"></i> Syndicated Wire Reprints Detected (Echo-chamber deduplicated)
+                            </div>
                         ` : ''}
                     </div>
                 </div>
 
-                <div style="margin-top: 1.5rem; padding: 1rem; background: #e6fffa; border-radius: 8px; border-left: 4px solid #38b2ac;">
-                    <strong>🎮 Your Progress:</strong><br>
-                    <span style="font-size: 1.1em;">Points: ${data.gamification.points}</span><br>
-                    Badges: ${data.gamification.badges.join(', ') || 'None yet - keep fact-checking to earn badges!'}
-                    ${data.gamification.badge_earned ? `<br><span style="color: #38b2ac; font-weight: bold; font-size: 1.1em;">🎉 Congratulations! New Badge Earned: ${data.gamification.badge_earned}!</span>` : ''}
+                <!-- 3. Decomposed Atomic Sub-claims (if compound claim) -->
+                ${subclaims.length > 0 ? `
+                    <div class="subclaims-section">
+                        <div class="panel-title">
+                            <i class="fas fa-project-diagram" style="color: #3b82f6;"></i>
+                            Claim Decomposition & Atomic Parts
+                        </div>
+                        <div class="subclaims-list">
+                            ${subclaims.map((sc, i) => `
+                                <div class="subclaim-card">
+                                    <div class="subclaim-text">
+                                        <span style="font-weight: 700; color: #6366f1; margin-right: 0.5rem;">Part ${i + 1}:</span>
+                                        "${sc.text}"
+                                    </div>
+                                    <span style="font-size: 0.78rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 6px; white-space: nowrap; ${
+                                        (sc.status || '').includes('Refuted') ? 'background: #fee2e2; color: #dc2626;' :
+                                        (sc.status || '').includes('Supported') ? 'background: #dcfce7; color: #15803d;' :
+                                        'background: #f1f5f9; color: #475569;'
+                                    }">
+                                        ${sc.status || 'Evaluated'}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 4. Auditable Evidence Sources Grid -->
+                <div class="evidence-sources-section">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fas fa-newspaper" style="color: #059669;"></i>
+                            Auditable Source Evidence Trail (${sources.length})
+                        </div>
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">
+                            Primary & Secondary Verified Reporting
+                        </span>
+                    </div>
+
+                    ${sources.length > 0 ? `
+                        <div class="sources-grid">
+                            ${sources.map(s => {
+                                const isHighAuth = (s.authority_score || 50) >= 80;
+                                const stanceClass = s.stance === 'supports' ? 'stance-supports' : (s.stance === 'refutes' ? 'stance-refutes' : 'stance-neutral');
+                                const stanceLabel = s.stance === 'supports' ? 'SUPPORTS CLAIM' : (s.stance === 'refutes' ? 'REFUTES CLAIM' : 'NEUTRAL CONTEXT');
+                                return `
+                                    <div class="source-card">
+                                        <div>
+                                            <div class="source-card-header">
+                                                <div class="source-publisher">
+                                                    <i class="fas fa-globe" style="color: #94a3b8; margin-right: 0.3rem;"></i>
+                                                    ${s.publisher || 'Verified Source'}
+                                                </div>
+                                                <span class="source-authority-badge ${isHighAuth ? 'auth-tier-high' : ''}" title="${s.authority_tier || ''}">
+                                                    ${s.authority_score || 50}/100 Auth
+                                                </span>
+                                            </div>
+                                            
+                                            <div class="source-stance-pill ${stanceClass}">
+                                                ${stanceLabel}
+                                            </div>
+
+                                            <div class="source-title">${s.title || ''}</div>
+                                            
+                                            ${s.excerpt ? `
+                                                <div class="source-excerpt">
+                                                    "${s.excerpt}"
+                                                </div>
+                                            ` : ''}
+                                        </div>
+
+                                        <div class="source-footer">
+                                            <span>${s.date ? `<i class="far fa-calendar-alt"></i> ${s.date}` : (s.authority_tier || 'Verified')}</span>
+                                            ${s.url ? `
+                                                <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="source-link">
+                                                    View Source <i class="fas fa-external-link-alt"></i>
+                                                </a>
+                                            ` : '<span style="color: #94a3b8;">Direct Record</span>'}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : `
+                        <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; font-size: 0.9rem;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 0.4rem;"></i>
+                            ${data.evidence || 'No direct fact-check database match found. Cross-referenced against authoritative domain guidelines and reasoning engine.'}
+                        </div>
+                    `}
                 </div>
 
-                <div style="margin-top: 1rem; padding: 1rem; background: #ebf4ff; border-radius: 8px; border-left: 4px solid #4299e1;">
-                    <strong>📊 Personalized Guidance:</strong><br>
-                    <span style="font-weight: bold;">Topic Category:</span> ${data.personalization.category}<br><br>
-                    <span style="font-weight: bold;">Specific Advice:</span><br>
-                    <em>${data.personalization.tip}</em>
+                <!-- 5. Transparent Credibility Formula Breakdown -->
+                ${breakdown.source_convergence_score !== undefined ? `
+                    <div class="credibility-formula-card">
+                        <div class="panel-title">
+                            <i class="fas fa-calculator" style="color: #8b5cf6;"></i>
+                            Transparent Credibility Formula
+                        </div>
+                        <div class="formula-grid">
+                            <div class="formula-item">
+                                <div class="formula-label">
+                                    <span>Source Convergence</span>
+                                    <strong>${breakdown.source_convergence_score || 50}%</strong>
+                                </div>
+                                <div class="formula-bar">
+                                    <div class="formula-bar-fill" style="width: ${breakdown.source_convergence_score || 50}%"></div>
+                                </div>
+                            </div>
+                            <div class="formula-item">
+                                <div class="formula-label">
+                                    <span>Evidence Authority</span>
+                                    <strong>${breakdown.evidence_authority_score || 50}%</strong>
+                                </div>
+                                <div class="formula-bar">
+                                    <div class="formula-bar-fill" style="width: ${breakdown.evidence_authority_score || 50}%"></div>
+                                </div>
+                            </div>
+                            <div class="formula-item">
+                                <div class="formula-label">
+                                    <span>Publisher Independence</span>
+                                    <strong>${breakdown.publisher_independence_score || 50}%</strong>
+                                </div>
+                                <div class="formula-bar">
+                                    <div class="formula-bar-fill" style="width: ${breakdown.publisher_independence_score || 50}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="formula-desc">
+                            ${breakdown.formula_explanation || 'Weighted combination of multi-source agreement, verified institution authority, and publisher diversity.'}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 6. In-depth Reasoning & Fact-Checking Tips -->
+                <div style="background: #ffffff; padding: 1.5rem; border-radius: 14px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin: 0 0 0.75rem 0; color: #1e293b; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-brain" style="color: #4f46e5;"></i>
+                        AI Grounded Reasoning & Explanation
+                    </h4>
+                    <div style="color: #334155; line-height: 1.7; font-size: 0.95rem;">
+                        ${data.explanation}
+                    </div>
+
+                    ${data.tips && data.tips.length > 0 ? `
+                        <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: #fffbeb; border-radius: 8px; border: 1px solid #fef3c7;">
+                            <strong style="color: #92400e; font-size: 0.88rem; display: block; margin-bottom: 0.5rem;">
+                                <i class="fas fa-lightbulb" style="color: #f59e0b;"></i> Actionable Fact-Checking Tips:
+                            </strong>
+                            <ul style="margin: 0; padding-left: 1.25rem; color: #78350f; font-size: 0.85rem; line-height: 1.5;">
+                                ${data.tips.slice(0, 4).map(tip => `<li style="margin: 0.35rem 0;">${tip}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- 7. Gamification & Personalized Insights -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    <div style="padding: 1.25rem; background: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0;">
+                        <div style="font-weight: 700; color: #065f46; margin-bottom: 0.5rem;">
+                            <i class="fas fa-award" style="color: #059669; margin-right: 0.3rem;"></i>
+                            Your Fact-Checking Journey
+                        </div>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: #047857;">
+                            ${gamification.points} Points Earned (+10)
+                        </div>
+                        <div style="font-size: 0.85rem; color: #065f46; margin-top: 0.35rem;">
+                            Badges: <strong>${(gamification.badges && gamification.badges.length) ? gamification.badges.join(', ') : 'Truth Explorer'}</strong>
+                        </div>
+                        ${gamification.badge_earned ? `
+                            <div style="margin-top: 0.75rem; padding: 0.5rem; background: #ffffff; border-radius: 6px; font-weight: 700; color: #059669; font-size: 0.85rem;">
+                                🎉 New Badge Unlocked: ${gamification.badge_earned}!
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="padding: 1.25rem; background: #eff6ff; border-radius: 12px; border: 1px solid #bfdbfe;">
+                        <div style="font-weight: 700; color: #1e40af; margin-bottom: 0.5rem;">
+                            <i class="fas fa-compass" style="color: #2563eb; margin-right: 0.3rem;"></i>
+                            Personalized Guidance (${personalization.category})
+                        </div>
+                        <div style="font-size: 0.85rem; color: #1e3a8a; line-height: 1.5;">
+                            ${personalization.tip || 'Cross-reference claims with official authorities and maintain a healthy skepticism towards sensationalized viral claims.'}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -136,17 +457,17 @@ function initializeDemoFunctionality() {
 
     function displayError(errorMessage) {
         return `
-            <div class="demo-result" style="border-left-color: #e53e3e;">
-                <h3>🔴 Error</h3>
-                <p>Could not connect to the analysis server. Please ensure the Python server is running and try again.</p>
-                <p style="font-family: monospace; background: #fef2f2; padding: 0.5rem; border-radius: 4px; margin-top: 1rem; color: #c53030;">${errorMessage}</p>
-                <div style="margin-top: 1rem; padding: 1rem; background: #fef2f2; border-radius: 6px;">
-                    <strong>Troubleshooting Steps:</strong>
-                    <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                        <li>Make sure the Flask server is running: <code>python app.py</code></li>
-                        <li>Check that the server is accessible at https://echo-mind-191043917366.us-central1.run.app</li>
-                        <li>Verify your Google Cloud credentials are set up correctly</li>
-                        <li>Check the browser console for additional error details</li>
+            <div class="demo-result" style="border-left-color: #ef4444; background: #fef2f2; padding: 1.5rem; border-radius: 12px;">
+                <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-exclamation-circle"></i> Service Notice
+                </h3>
+                <p style="color: #7f1d1d; margin-bottom: 1rem;">Could not connect to the analysis engine. Please ensure the backend server is running.</p>
+                <p style="font-family: monospace; background: #ffffff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; color: #991b1b; border: 1px solid #fecaca;">${errorMessage}</p>
+                <div style="margin-top: 1rem; padding: 1rem; background: #ffffff; border-radius: 8px; border: 1px solid #fecaca; font-size: 0.88rem; color: #7f1d1d;">
+                    <strong>Next Steps:</strong>
+                    <ol style="margin: 0.5rem 0 0 1.25rem; line-height: 1.6;">
+                        <li>If testing locally, run: <code>python app.py</code> (runs on port 8080)</li>
+                        <li>Check network connectivity or backend service health check at <code>/health</code></li>
                     </ol>
                 </div>
             </div>
@@ -158,35 +479,37 @@ function initializeDemoFunctionality() {
         
         if (!claim) {
             demoOutput.innerHTML = `
-                <div style="color: #e53e3e; text-align: center; padding: 2rem;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                    <p>Please enter a claim to analyze!</p>
+                <div style="color: #e11d48; text-align: center; padding: 2.5rem;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 2.5rem; margin-bottom: 1rem; display: block;"></i>
+                    <p style="font-size: 1.1rem; font-weight: 600;">Please enter a claim or statement to fact-check!</p>
                 </div>
             `;
             return;
         }
         
-        // Show loading state
+        // Show rich loading state
         demoOutput.innerHTML = `
-            <div class="loading" style="display: flex; align-items: center; justify-content: center; padding: 2rem;">
-                <div class="spinner" style="margin-right: 1rem; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                <span>Connecting to Vertex AI...</span>
+            <div class="loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem; gap: 1rem; text-align: center;">
+                <div class="spinner" style="width: 44px; height: 44px; border: 4px solid #f1f5f9; border-top: 4px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div style="font-weight: 700; color: #1e293b; font-size: 1.1rem;">
+                    Evidence Intelligence Engine in Action
+                </div>
+                <div style="color: #64748b; font-size: 0.88rem; max-width: 420px; line-height: 1.5;">
+                    Retrieving primary fact-checks, evaluating domain authority, decomposing atomic sub-claims, and detecting multi-source consensus...
+                </div>
             </div>
-            <style>
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            </style>
         `;
         
         try {
-            console.log('🚀 Starting API call with hardcoded key - no prompt should appear!');
-            const response = await fetch('https://echo-mind-191043917366.us-central1.run.app/analyze', {
+            const apiUrl = getApiUrl();
+            const sessionId = getSessionId();
+            console.log('🚀 Sending claim to backend:', apiUrl, 'Session:', sessionId);
+
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': 'gdo4N6BnLrvu9MOaH25Ml5M8msPjVf9tsez24Dq8eRI'
+                    'X-Session-ID': sessionId
                 },
                 body: JSON.stringify({ claim: claim }),
             });
@@ -197,8 +520,9 @@ function initializeDemoFunctionality() {
             }
 
             const data = await response.json();
-            console.log('Analysis result:', data); // For debugging
+            console.log('Analysis result received:', data);
             demoOutput.innerHTML = displayAnalysisResult(data);
+            bindActionToolbarEvents(data, claim);
 
         } catch (error) {
             console.error('Fetch Error:', error);
@@ -213,6 +537,331 @@ function initializeDemoFunctionality() {
             checkClaimBtn.click();
         }
     });
+
+    // =========================================================================
+    // Modal Helpers & Extension Event Handlers
+    // =========================================================================
+    function showModal(title, contentHtml) {
+        let existing = document.getElementById('echoModalBackdrop');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'echoModalBackdrop';
+        modal.className = 'echo-modal-backdrop';
+        modal.innerHTML = `
+            <div class="echo-modal-box">
+                <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+                <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #1e293b;">${title}</h3>
+                <div>${contentHtml}</div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#modalCloseBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('echoModalBackdrop');
+        if (modal) modal.remove();
+    }
+
+    function bindActionToolbarEvents(data, currentClaim) {
+        // 1. Claim Evolution Timeline Modal
+        const btnEvolution = document.getElementById('btnViewEvolution');
+        if (btnEvolution) {
+            btnEvolution.addEventListener('click', async function() {
+                showModal('Claim Evolution & Mutation Timeline', `
+                    <div style="text-align: center; padding: 2rem;">
+                        <div class="spinner" style="margin: 0 auto 1rem;"></div>
+                        <div>Loading mutation history...</div>
+                    </div>
+                `);
+                try {
+                    const resp = await fetch(`${getBaseUrl()}/evolution?claim=${encodeURIComponent(currentClaim)}`);
+                    const ev = await resp.json();
+                    const timeline = ev.timeline || [];
+                    const content = `
+                        <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                            Tracing how this claim evolved across time in wording, evidence accumulation, and verdict changes.
+                            ${ev.verdict_drift_detected ? '<strong style="color: #b45309; display: block; margin-top: 0.5rem;">⚠️ Verdict drift detected across mutation history!</strong>' : ''}
+                        </p>
+                        <div class="evolution-timeline">
+                            ${timeline.map((node, i) => `
+                                <div class="timeline-node">
+                                    <div class="timeline-dot"></div>
+                                    <div class="timeline-card">
+                                        <div class="timeline-date">${node.recorded_at ? node.recorded_at.substring(0, 10) : 'Recent'} • Variant #${i+1}</div>
+                                        <div class="timeline-variant">"${node.variant_text}"</div>
+                                        <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem;">
+                                            <span style="font-weight: 700; color: ${node.verdict === 'Trustworthy' ? '#15803d' : (node.verdict === 'False' ? '#b91c1c' : '#b45309')}">
+                                                Verdict: ${node.verdict} (${node.score} pts)
+                                            </span>
+                                            <span>• Primary: ${node.primary_source || 'Synthesized'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    showModal('Claim Evolution & Mutation Timeline', content);
+                } catch (err) {
+                    showModal('Claim Evolution', `<div style="color:#e11d48;">Could not fetch evolution timeline: ${err.message}</div>`);
+                }
+            });
+        }
+
+        // 2. Opt-in Claim Monitoring
+        const btnMonitor = document.getElementById('btnMonitorClaim');
+        if (btnMonitor) {
+            btnMonitor.addEventListener('click', function() {
+                showModal('Opt-In Claim Monitoring', `
+                    <p style="color: #475569; font-size: 0.92rem; margin-bottom: 1.25rem;">
+                        Follow <strong>"${currentClaim.substring(0, 70)}..."</strong> and get alerted only when significant new evidence, official announcements, or a verdict correction occurs.
+                    </p>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Email for Notifications (Optional):</label>
+                        <input type="email" id="monitorEmailInput" placeholder="your.email@example.com" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;" />
+                    </div>
+                    <button id="btnConfirmMonitor" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+                        <i class="fas fa-bell"></i> Activate Claim Monitoring
+                    </button>
+                    <div id="monitorStatusMsg" style="margin-top: 1rem;"></div>
+                `);
+
+                document.getElementById('btnConfirmMonitor').addEventListener('click', async function() {
+                    const email = document.getElementById('monitorEmailInput').value.trim();
+                    const statusDiv = document.getElementById('monitorStatusMsg');
+                    statusDiv.innerHTML = '<div style="color: #6366f1;">Subscribing...</div>';
+
+                    try {
+                        const resp = await fetch(`${getBaseUrl()}/monitor/subscribe`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Session-ID': getSessionId() },
+                            body: JSON.stringify({
+                                claim: currentClaim,
+                                verdict: data.classification,
+                                score: data.score,
+                                email: email || null,
+                                evidence_count: (data.evidence_sources || []).length
+                            })
+                        });
+                        const res = await resp.json();
+                        statusDiv.innerHTML = `
+                            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.75rem; border-radius: 8px; font-size: 0.88rem;">
+                                <i class="fas fa-check-circle"></i> ${res.message || 'Subscribed successfully!'}
+                            </div>
+                        `;
+                    } catch (err) {
+                        statusDiv.innerHTML = `<div style="color: #e11d48;">Subscription error: ${err.message}</div>`;
+                    }
+                });
+            });
+        }
+
+        // 3a. Shareable Report & ClaimReview (opens in new tab)
+        const btnShareReport = document.getElementById('btnShareReport');
+        if (btnShareReport) {
+            btnShareReport.addEventListener('click', function() {
+                const reportUrl = `${getBaseUrl()}/report?claim=${encodeURIComponent(currentClaim)}`;
+                window.open(reportUrl, '_blank');
+            });
+        }
+
+        // 3. Research Document Deep-Scan Modal
+        const btnDocScan = document.getElementById('btnOpenDocAnalysis');
+        if (btnDocScan) {
+            btnDocScan.addEventListener('click', function() {
+                showModal('Research Document & Official Notice Deep-Scan', `
+                    <p style="color: #475569; font-size: 0.9rem; margin-bottom: 1rem;">
+                        Paste the text of a research paper, official government circular, court order, or press notice.
+                        Echo Mind will chunk passages, isolate individual factual claims, and trace citations back to exact passages.
+                    </p>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Document Title:</label>
+                        <input type="text" id="docTitleInput" placeholder="e.g. Health Ministry Circular #2026" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;" />
+                    </div>
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Document Text Content:</label>
+                        <textarea id="docContentInput" rows="6" placeholder="Paste full document or circular text here..." style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; font-family: inherit;"></textarea>
+                    </div>
+                    <button id="btnRunDocScan" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+                        <i class="fas fa-microscope"></i> Deep-Scan Document & Trace Citations
+                    </button>
+                    <div id="docScanResults" style="margin-top: 1.5rem;"></div>
+                `);
+
+                document.getElementById('btnRunDocScan').addEventListener('click', async function() {
+                    const title = document.getElementById('docTitleInput').value.trim() || 'Submitted Document';
+                    const text = document.getElementById('docContentInput').value.trim();
+                    const resultsDiv = document.getElementById('docScanResults');
+
+                    if (!text) {
+                        resultsDiv.innerHTML = '<div style="color: #e11d48;">Please paste document content!</div>';
+                        return;
+                    }
+
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 1.5rem;"><div class="spinner" style="margin: 0 auto 0.75rem;"></div><div>Chunking passages and tracing claims...</div></div>';
+
+                    try {
+                        const resp = await fetch(`${getBaseUrl()}/document/analyze`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: title, text: text })
+                        });
+                        const res = await resp.json();
+                        const verified = res.verified_claims || [];
+                        resultsDiv.innerHTML = `
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <strong>Document Integrity Score:</strong>
+                                    <span style="font-size: 1.25rem; font-weight: 800; color: #6366f1;">${res.document_integrity_score}/100</span>
+                                </div>
+                                <div style="font-size: 0.85rem; color: #64748b;">
+                                    Passages Analyzed: <strong>${res.total_passages}</strong> • Claims Extracted: <strong>${res.total_claims_extracted}</strong>
+                                </div>
+                            </div>
+                            <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; color: #1e293b;">Extracted Claims & Passage Tracing:</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${verified.map(vc => `
+                                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${vc.verdict === 'Trustworthy' ? '#10b981' : (vc.verdict === 'False' ? '#ef4444' : '#f59e0b')}; border-radius: 8px; padding: 0.85rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: #64748b; margin-bottom: 0.35rem;">
+                                            <span>Paragraph #${vc.paragraph_num} • Estimated Page ${vc.estimated_page}</span>
+                                            <span style="font-weight: 700; color: ${vc.verdict === 'Trustworthy' ? '#059669' : (vc.verdict === 'False' ? '#dc2626' : '#d97706')}">${vc.verdict} (${vc.score} pts)</span>
+                                        </div>
+                                        <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 0.35rem;">"${vc.claim_text}"</div>
+                                        <div style="font-size: 0.82rem; color: #64748b; font-style: italic; background: #f8fafc; padding: 0.4rem 0.6rem; border-radius: 4px;">Context: "${vc.surrounding_context}"</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } catch (err) {
+                        resultsDiv.innerHTML = `<div style="color: #e11d48;">Scan error: ${err.message}</div>`;
+                    }
+                });
+            });
+        }
+
+        // 4. Quality & Transparency Observability Dashboard
+        const btnTransparency = document.getElementById('btnOpenTransparency');
+        if (btnTransparency) {
+            btnTransparency.addEventListener('click', async function() {
+                showModal('Quality & Transparency Observability Dashboard', `
+                    <div style="text-align: center; padding: 2rem;">
+                        <div class="spinner" style="margin: 0 auto 1rem;"></div>
+                        <div>Loading real-time telemetry metrics...</div>
+                    </div>
+                `);
+
+                try {
+                    const resp = await fetch(`${getBaseUrl()}/transparency`);
+                    const m = await resp.json();
+                    showModal('Quality & Transparency Observability Dashboard', `
+                        <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                            Live operational benchmarks tracking citation coverage, domain authority integrity, and verification latency.
+                        </p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #f8fafc; padding: 1.25rem; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                                <div style="font-size: 1.8rem; font-weight: 900; color: #10b981;">${m.citation_coverage_pct}%</div>
+                                <div style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Citation Coverage</div>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1.25rem; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                                <div style="font-size: 1.8rem; font-weight: 900; color: #3b82f6;">${m.retrieval_success_pct}%</div>
+                                <div style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Retrieval Success</div>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1.25rem; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                                <div style="font-size: 1.8rem; font-weight: 900; color: #f59e0b;">${m.unresolved_conflict_pct}%</div>
+                                <div style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Unresolved Conflicts</div>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1.25rem; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                                <div style="font-size: 1.8rem; font-weight: 900; color: #6366f1;">${m.average_latency_ms} ms</div>
+                                <div style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Avg Latency</div>
+                            </div>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.85rem; color: #475569;">
+                            <i class="fas fa-certificate" style="color: #6366f1; margin-right: 0.35rem;"></i>
+                            Benchmark Evaluation: <strong>${m.eval_benchmark_accuracy}</strong>
+                            <br>
+                            Open Community Corrections: <strong>${m.open_human_corrections}</strong>
+                        </div>
+                    `);
+                } catch (err) {
+                    showModal('Observability Dashboard', `<div style="color: #e11d48;">Could not fetch metrics: ${err.message}</div>`);
+                }
+            });
+        }
+
+        // 5. Submit Human Correction Modal
+        const btnCorrection = document.getElementById('btnSubmitCorrection');
+        if (btnCorrection) {
+            btnCorrection.addEventListener('click', function() {
+                showModal('Submit Fact-Check Correction & Audit Feedback', `
+                    <p style="color: #475569; font-size: 0.9rem; margin-bottom: 1.25rem;">
+                        Echo Mind adheres to traceable source attribution and transparent correction policies.
+                        Submit external primary evidence if you believe a verdict or citation requires revision.
+                    </p>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Suggested Verdict:</label>
+                        <select id="corrVerdictSelect" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;">
+                            <option value="Trustworthy">Trustworthy</option>
+                            <option value="False">False</option>
+                            <option value="Suspicious">Suspicious / Disputed</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Primary Evidence URL (Required):</label>
+                        <input type="url" id="corrUrlInput" placeholder="https://who.int/... or https://pib.gov.in/..." style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;" required />
+                    </div>
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Rationale & Factual Breakdown:</label>
+                        <textarea id="corrRationaleInput" rows="3" placeholder="Explain the factual basis with reference to the primary source link above..." style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; font-family: inherit;"></textarea>
+                    </div>
+                    <button id="btnSendCorrection" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+                        <i class="fas fa-paper-plane"></i> Submit to Public Audit Log
+                    </button>
+                    <div id="corrStatusMsg" style="margin-top: 1rem;"></div>
+                `);
+
+                document.getElementById('btnSendCorrection').addEventListener('click', async function() {
+                    const suggested = document.getElementById('corrVerdictSelect').value;
+                    const url = document.getElementById('corrUrlInput').value.trim();
+                    const rationale = document.getElementById('corrRationaleInput').value.trim();
+                    const statusDiv = document.getElementById('corrStatusMsg');
+
+                    if (!url || !rationale) {
+                        statusDiv.innerHTML = '<div style="color: #e11d48;">Please fill in both the Evidence URL and Rationale.</div>';
+                        return;
+                    }
+
+                    statusDiv.innerHTML = '<div style="color: #6366f1;">Submitting to audit log...</div>';
+
+                    try {
+                        const resp = await fetch(`${getBaseUrl()}/correction`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                claim_text: currentClaim,
+                                reported_verdict: data.classification,
+                                suggested_verdict: suggested,
+                                evidence_url: url,
+                                rationale: rationale
+                            })
+                        });
+                        const res = await resp.json();
+                        statusDiv.innerHTML = `
+                            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.75rem; border-radius: 8px; font-size: 0.88rem;">
+                                <i class="fas fa-check-circle"></i> ${res.message || 'Correction received into audit queue!'}
+                            </div>
+                        `;
+                    } catch (err) {
+                        statusDiv.innerHTML = `<div style="color: #e11d48;">Error: ${err.message}</div>`;
+                    }
+                });
+            });
+        }
+    }
 }
 
 // Scroll animations

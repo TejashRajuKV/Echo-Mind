@@ -1,241 +1,331 @@
-# Thunderwing Falcons - Echo Mind AI Fact-Checker
+# Thunderwing Falcons — Echo Mind AI Fact-Checker
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
+![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey.svg)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5_Pro-green.svg)
-![Auto-Update](https://img.shields.io/badge/Auto--Update-Daily-orange.svg)
+![Vertex AI](https://img.shields.io/badge/Vertex_AI-Google_Cloud-orange.svg)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)
+![License](https://img.shields.io/badge/License-Educational-blueviolet.svg)
 
-🚀 **NEW**: Now with **Daily Auto-Update System** and **Gemini 2.5 Pro Integration**!
+> **Echo Mind** — *Suggesting intelligent responses and echoes of knowledge*  
+> Built by **Thunderwing Falcons** for the Google Hackathon.
 
-A cutting-edge AI fact-checking platform by Thunderwing Falcons, built for the Google Hackathon. Features real-time news integration, automated daily updates, and advanced AI-powered analysis that stays current with the latest events.
+---
 
-## 🏆 **What Makes Echo Mind Special:**
-- ⚡ **Always Current**: Daily updates from BBC, Reuters, The Hindu & more
-- 🧠 **Smart AI**: Gemini 2.5 Pro with current date awareness
-- 🔄 **Automated**: Windows Task Scheduler integration
-- 📏 **Comprehensive**: Political updates, health news, and more
-- 🔒 **Reliable**: Smart filtering and duplicate prevention
-- 📊 **Monitored**: Complete logging and error tracking
+## Overview
 
-## Features
+Echo Mind is a production-grade AI fact-checking platform that **retrieves and audits evidence first, then reasons over it** — rather than relying on the model's own knowledge alone. Every verdict is backed by an auditable evidence trail with source titles, publisher names, publication dates, and direct URLs.
 
-### 🤖 **NEW: AI Auto-Update System**
-- **Daily News Integration**: Automatic fetching from BBC, Reuters, The Hindu, Times of India, and more
-- **Real-time Political Updates**: Current CM, PM, and government changes automatically detected
-- **Smart Content Filtering**: Only relevant, high-quality information added to database
-- **Gemini 2.5 Pro**: Upgraded AI model with enhanced reasoning capabilities
-- **Current Date Awareness**: AI responses include current context and time-sensitive information
-- **Windows Scheduler Integration**: Runs automatically every day at 6 AM
+The system runs on Google Vertex AI (Gemini 2.5 Pro) with a deterministic fallback pipeline when Vertex AI is unavailable, so it works fully offline or in local development.
 
-### 🎨 Modern Web Design
-- Responsive design that works on all devices
-- Professional gradient color scheme
-- Smooth animations and transitions
-- Mobile-friendly navigation
+---
 
-### 🚀 Interactive Elements
-- Demo fact-checker with sample responses
-- Smooth scrolling navigation
-- Contact form with validation
-- Animated statistics counters
-- Hover effects and micro-interactions
+## Feature Set
 
-### 📱 Fully Responsive
-- Mobile-first design approach
-- Tablet and desktop optimized layouts
-- Touch-friendly interface
-- Cross-browser compatibility
+### Core Evidence & Verification Engine
+
+| Feature | Description |
+|---|---|
+| **Evidence Intelligence Engine** | Queries Google Fact Check Tools API, FreeNewsAPI, and a local authoritative database *before* asking the AI. Every source gets a domain-authority tier score (0-100). |
+| **Multi-Source Conflict Detection** | Decomposes every claim into atomic sub-claims and checks each independently across publishers. Detects consensus vs. active contradiction. |
+| **Atomic Claim Decomposition** | Splits compound statements into individually verifiable factual assertions for granular accuracy. |
+| **Echo-Chamber Deduplication** | Clusters syndicated wire reprints (PTI, AP, Reuters, ANI) and counts them as one source to prevent artificial consensus inflation. |
+| **Explainable Credibility Scoring** | Multi-factor formula: Source Convergence + Domain Authority + Publisher Diversity. Shown as a transparent breakdown, not a black-box number. |
+| **Gamified Critical Thinking** | Points, badges, and personalised tips per category. State is isolated per anonymous session -- not shared across users. |
+
+### Intelligence Extensions
+
+| Feature | Description |
+|---|---|
+| **Claim Evolution Tracker** | Links repeated mutations of the same claim across time, tracking wording changes, evidence accumulation, and verdict drift. Stored in `claim_evolution.db`. |
+| **Indian-Language Verification** | Native script detection for Kannada, Hindi, Tamil, Telugu, and Bengali. Preserves original vernacular wording and queries regional trusted publishers (Prajavani, Vijayavani, Dainik Jagran, Amar Ujala, Eenadu, Dinamalar, Anandabazar Patrika). |
+| **Research Document Analysis** | Paste any official notice, circular, research paper, or court order. The engine chunks paragraphs, extracts factual claims, and traces each to an estimated page and exact passage. |
+| **Opt-In Claim Monitoring** | Subscribe to follow any claim. Alerts are stored in `claim_monitors.db` and triggered when significant new evidence or a verdict correction emerges. |
+| **Shareable Evidence Reports** | Generates a standalone HTML evidence report with full citations, verification date, methodology, and limitations. Includes Google **ClaimReview** Schema.org JSON-LD structured data for search engine eligibility. |
+| **Quality & Transparency Dashboard** | Real-time telemetry: citation coverage %, retrieval success %, unresolved conflict %, average latency, benchmark accuracy, and open human correction queue. |
+
+---
+
+## Architecture
+
+```
+User Browser
+    |
+    +-- index.html + styles.css + script.js
+    |       (file:// or via Flask static serving)
+    |
+    +-- HTTP --> Flask (app.py -- port 8080)
+                    |
+                    +-- /analyze --> analysis_engine.py
+                    |                   +-- evidence_engine.py      (retrieve first)
+                    |                   +-- verification_engine.py  (consensus + score)
+                    |                   +-- indian_language_engine.py
+                    |                   +-- claim_evolution.py
+                    |                   +-- Vertex AI / Gemini 2.5 Pro  (reason over evidence)
+                    |
+                    +-- /evolution        --> claim_evolution.py
+                    +-- /document/analyze --> document_analysis.py
+                    +-- /monitor/*        --> claim_monitor.py
+                    +-- /report           --> shareable_report.py
+                    +-- /transparency     --> transparency_dashboard.py
+                    +-- /correction       --> transparency_dashboard.py
+```
+
+### Databases (SQLite, local)
+
+| File | Purpose |
+|---|---|
+| `factchecks.db` | Authoritative fact-checks + `analysis_logs` table (separate from fact-checks to prevent circular self-reference) |
+| `sessions.db` | Per-user gamification points, badges, and claim history |
+| `claim_evolution.db` | Claim variant clusters and mutation timelines |
+| `claim_monitors.db` | Active opt-in monitor subscriptions and update records |
+| `transparency_metrics.db` | Runtime telemetry and human correction queue |
+
+---
+
+## REST API
+
+All endpoints are served by `app.py` on port `8080`.
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/analyze` | Session | AI fact-checking with full evidence pipeline |
+| `GET` | `/evolution` | -- | Claim mutation timeline and verdict drift |
+| `POST` | `/document/analyze` | -- | Research document chunking and passage citation |
+| `POST` | `/monitor/subscribe` | Session | Opt-in alert subscription |
+| `GET` | `/monitor/list` | Session | List active monitors for current session |
+| `GET` | `/report` | -- | Linkable HTML evidence report + ClaimReview JSON-LD |
+| `GET` | `/transparency` | -- | Quality observability metrics |
+| `POST` | `/correction` | -- | Submit human correction with citation evidence |
+| `GET` | `/history` | Session | Caller's recent claim history (last 20) |
+| `GET` | `/stats` | API Key | Database statistics (admin) |
+| `GET` | `/health` | -- | Service health check |
+
+---
 
 ## Project Structure
 
 ```
 Echo Mind/
-├── index.html              # Main HTML file with team section
-├── styles.css              # CSS styling with enhanced design
-├── script.js               # JavaScript with voice features
-├── app.py                  # Flask backend server
-├── analysis_engine.py      # AI fact-checking engine (Gemini 2.5 Pro)
-├── auto_updater.py         # 🆕 Daily news auto-update system
-├── database_helper.py      # SQLite database functions
-├── setup_auto_update.bat   # 🆕 Windows auto-update installer
-├── AUTO_UPDATE_GUIDE.md    # 🆕 Complete auto-update documentation
-├── factchecks.db          # Local fact-check database
-├── current_context.json    # 🆕 Daily updated news context (auto-generated)
-├── last_update.json        # 🆕 Update tracking (auto-generated)
-├── auto_updater.log        # 🆕 Auto-update logs (auto-generated)
-├── assets/                # Images and icons folder
-├── requirements.txt       # Python dependencies (updated)
-└── README.md              # This file
++-- index.html                  # Frontend -- single-page app
++-- styles.css                  # Full design system (1,650+ lines)
++-- script.js                   # Frontend logic + all modal interactions
+|
++-- app.py                      # Flask server -- all 11 routes
++-- analysis_engine.py          # Orchestrator -- evidence pipeline + Vertex AI
+|
++-- evidence_engine.py          # Google Fact Check API + FreeNewsAPI + DB connector
++-- verification_engine.py      # Atomic sub-claim decomposition + consensus scoring
++-- claim_evolution.py          # Claim mutation tracker (SQLite)
++-- indian_language_engine.py   # Kannada/Hindi/Tamil/Telugu/Bengali support
++-- document_analysis.py        # PDF/notice text chunker + claim extractor
++-- claim_monitor.py            # Opt-in subscription + update detection
++-- shareable_report.py         # HTML report + ClaimReview Schema.org JSON-LD
++-- transparency_dashboard.py   # Telemetry logger + public metrics calculator
+|
++-- database_helper.py          # factchecks.db and analysis_logs helpers
++-- auto_updater.py             # Daily news context refresh (BBC, Reuters, The Hindu)
++-- rag_integration.py          # RAG system integration layer
++-- rag_system.py               # Retrieval-Augmented Generation engine
+|
++-- factchecks.db               # Authoritative fact-check database
++-- sessions.db                 # Per-user session and gamification state
++-- claim_evolution.db          # Claim variant clusters
++-- claim_monitors.db           # Active opt-in monitors
++-- transparency_metrics.db     # Runtime telemetry
++-- real_time_data.db           # Real-time sports and news data
+|
++-- .env                        # Secret keys -- NOT committed to Git
++-- .env.example                # Template for required environment variables
++-- .gitignore                  # Excludes .env, __pycache__, *.db, logs
+|
++-- requirements.txt            # Core Python dependencies
++-- requirements_rag.txt        # RAG-specific dependencies
++-- Dockerfile                  # Container definition for Cloud Run
++-- deploy_to_cloud_run.bat     # One-click Cloud Run deployment
+|
++-- API_SETUP_GUIDE.md          # API key setup instructions
++-- AUTO_UPDATE_GUIDE.md        # Auto-updater configuration and scheduling
++-- RAG_SYSTEM_GUIDE.md         # RAG system setup and usage guide
+|
++-- assets/                     # Logo and image assets
 ```
 
-## Technologies Used
-
-### Frontend
-- **HTML5** - Semantic markup
-- **CSS3** - Modern styling with flexbox/grid
-- **JavaScript (ES6+)** - Interactive functionality
-- **Font Awesome** - Icons
-- **Google Fonts (Inter)** - Typography
-
-### AI Backend (Original Python Project)
-- **Google Vertex AI** - AI platform
-- **Gemini 2.5 Pro** - Advanced fact analysis model
-- **BigQuery** - Evidence database for fact-checking
-- **Python** - Core logic and implementation
-- **Gradio** - Web interface for the AI model
-- **Google Cloud** - Cloud platform
-
-## Demo Features
-
-The website includes a working demo that simulates the AI fact-checker with sample responses for:
-- COVID vaccine information
-- Climate change facts
-- Flat earth theories
-- General claims analysis
+---
 
 ## Getting Started
 
-### 🌍 **For Website Demo:**
-1. **Clone or Download** the project files
-2. **Open `index.html`** in a web browser
-3. **Explore** the different sections:
-   - Hero section with project introduction
-   - Features highlighting AI capabilities
-   - Interactive demo
-   - About section with tech stack
-   - Contact form
+### Prerequisites
 
-### 🤖 **For Full AI System with Auto-Updates:**
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/TejashRajuKV/Echo-Mind.git
-   cd Echo-Mind
-   ```
+- Python 3.11+
+- pip
+- (Optional) Google Cloud SDK -- required only for Vertex AI / BigQuery; the system runs fully on its deterministic fallback engine without it.
 
-2. **Quick Setup** (Windows - Run as Administrator):
-   ```bash
-   setup_auto_update.bat
-   ```
+### 1. Clone the repository
 
-3. **Manual Setup**:
-   ```bash
-   pip install -r requirements.txt
-   python auto_updater.py update  # Test auto-updater
-   python app.py                  # Start the AI backend
-   ```
+```bash
+git clone https://github.com/TejashRajuKV/Echo-Mind.git
+cd Echo-Mind
+```
 
-4. **Optional - Get NewsAPI Key** (for enhanced coverage):
-   - Register at [NewsAPI.org](https://newsapi.org/register) (free)
-   - Set environment variable: `set NEWSAPI_KEY=your_key_here`
+### 2. Install dependencies
 
-5. **Access the system**:
-   - Website: Open `index.html` in browser
-   - API: `http://localhost:8080` (Flask backend)
-   - Auto-updates: Run daily at 6 AM automatically
+```bash
+pip install -r requirements.txt
+```
 
-### 📚 **Read the Complete Guide:**
-See `AUTO_UPDATE_GUIDE.md` for detailed setup, configuration, and troubleshooting.
+### 3. Configure environment variables
 
-## Website Sections
+Copy the example file and fill in your keys:
 
-### 🏠 Hero Section
-- Project introduction
-- Key value proposition
-- Call-to-action buttons
+```bash
+copy .env.example .env
+```
 
-### ⚡ Features Section
-- 6 key features with icons
-- Vertex AI with Gemini integration
-- BigQuery evidence database
-- Trusted source verification
-- Gamified learning
-- Educational insights
-- Real-time analysis
+Edit `.env`:
 
-### 🧪 Demo Section
-- Interactive fact-checker simulation
-- Sample responses for testing
-- Loading states and animations
+```env
+# Required for Google Fact Check Tools API
+GOOGLE_FACT_CHECK_API_KEY=your_key_here
 
-### 📖 About Section
-- Project background
-- Technology stack
-- Performance statistics
+# Required for live news retrieval
+FREE_NEWS_API_KEY=your_key_here
 
-### 👥 Team Section
-- Thunderwing Falcons team members
-- Individual profiles with skills and contact info
-- Professional team presentation
+# Required for Vertex AI / Gemini (leave blank to use deterministic fallback)
+PROJECT_ID=your-gcp-project-id
+LOCATION=asia-south1
 
-### 🎤 Voice Features
-- Interactive voice welcome message
-- Text-to-speech integration
-- Accessibility enhancements
+# Security
+SECRET_KEY=generate-a-random-string-here
+ALLOWED_ORIGINS=http://localhost:8080
+INTERNAL_API_KEY=your-admin-key
 
-### 📞 Project Info Section
-- Echo Mind project details
-- Technology information
-- Mission and innovation highlights
+# Flask -- set to false in production
+FLASK_DEBUG=false
+```
 
-## Customization
+> **Never commit `.env` to Git.** It is already listed in `.gitignore`.
 
-### Colors
-The website uses a purple-blue gradient theme. To change colors, modify the CSS custom properties:
-- Primary: `#667eea` to `#764ba2`
-- Background: `#fafafa`
-- Text: `#333`, `#4a5568`, `#718096`
+See [API_SETUP_GUIDE.md](API_SETUP_GUIDE.md) for instructions on obtaining each key.
 
-### Content
-Update the HTML content in `index.html` to match your specific project details:
-- Team information
-- Contact details
-- Project statistics
-- Feature descriptions
+### 4. Start the backend server
 
-### Demo Responses
-Modify the `sampleResponses` object in `script.js` to add more demo scenarios.
+```bash
+python app.py
+```
 
-## Performance Features
+Server starts on **http://localhost:8080**.
 
-- **Smooth Animations** - CSS transitions and JavaScript animations
-- **Lazy Loading** - Images and content load as needed
-- **Optimized Assets** - Efficient CSS and JavaScript
-- **Mobile Optimized** - Fast loading on mobile devices
+### 5. Open the frontend
 
-## Browser Support
+**Option A -- via Flask (recommended):**
+Open `http://localhost:8080` in your browser.
 
-- ✅ Chrome (latest)
-- ✅ Firefox (latest)
-- ✅ Safari (latest)
-- ✅ Edge (latest)
-- ✅ Mobile browsers
+**Option B -- direct file (also works):**
+Open `index.html` directly from disk (`file:///...`). The frontend automatically detects `file://` protocol and routes all API calls to `localhost:8080`.
 
-## Recent Updates 🆕
+---
 
-- [x] **Connected to actual AI backend** - Gemini 2.5 Pro integration complete
-- [x] **Daily auto-update system** - Fetches news from 5+ trusted sources
-- [x] **Real-time context injection** - AI aware of current date and recent events
-- [x] **Windows Task Scheduler integration** - Automated daily updates
-- [x] **Enhanced database system** - Smart filtering and duplicate prevention
-- [x] **Comprehensive logging** - Full monitoring and error tracking
+## Indian Language Support
 
-## Future Enhancements
+Echo Mind detects the script of the input claim using Unicode block ranges and activates regional verification automatically:
 
-- [ ] User authentication system
-- [ ] Advanced analytics dashboard 
-- [ ] Multi-language support
-- [ ] Dark mode theme
-- [ ] Progressive Web App (PWA) features
-- [ ] Mobile app version
-- [ ] API rate limiting dashboard
-- [ ] Custom news source configuration UI
+| Language | Script | Regional Publishers |
+|---|---|---|
+| Kannada | U+0C80-U+0CFF | Prajavani, Vijayavani, Udayavani |
+| Hindi | U+0900-U+097F | Dainik Jagran, Amar Ujala, Navbharat Times |
+| Tamil | U+0B80-U+0BFF | Dinamalar, Dinakaran, The Hindu Tamil |
+| Telugu | U+0C00-U+0C7F | Eenadu, Sakshi, Andhra Jyothi |
+| Bengali | U+0980-U+09FF | Anandabazar Patrika, Prothom Alo |
+
+The original vernacular wording is preserved in all analysis and reports to avoid meaning drift from translation.
+
+---
+
+## Security
+
+| Area | Implementation |
+|---|---|
+| API Keys | Stored in `.env` only -- never in source code |
+| CORS | Restricted to `ALLOWED_ORIGINS` env var (not `*`) |
+| Rate Limiting | Per-session in-process limiter (configurable via `MAX_REQUESTS_PER_HOUR`) |
+| Session Isolation | Gamification state and history are scoped per session -- not shared globally |
+| Fact-Check Isolation | User analysis logs stored in `analysis_logs` table, separate from the authoritative `fact_checks` table, to prevent circular self-reference contamination |
+| Debug Mode | `FLASK_DEBUG=false` enforced in production |
+| Input Validation | Claim length capped at `MAX_CLAIM_LENGTH` with type-checked JSON body parsing |
+
+---
+
+## Deployment
+
+### Google Cloud Run
+
+```bash
+deploy_to_cloud_run.bat
+```
+
+Or manually:
+
+```bash
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/echo-mind
+gcloud run deploy echo-mind --image gcr.io/YOUR_PROJECT_ID/echo-mind \
+  --platform managed --region us-central1 --allow-unauthenticated
+```
+
+Set environment variables via Cloud Run's secret manager or environment variable configuration -- do **not** bundle `.env` into the container image.
+
+---
+
+## Technology Stack
+
+### Frontend
+- **HTML5 / CSS3 / JavaScript (ES6+)** -- no framework
+- **Font Awesome 6** -- icons
+- **Google Fonts -- Inter** -- typography
+
+### Backend
+- **Python 3.11** -- core language
+- **Flask 3.x** -- API server
+- **SQLite** -- five purpose-separated local databases
+- **Google Vertex AI -- Gemini 2.5 Pro** -- AI reasoning (with deterministic fallback)
+- **Google Fact Check Tools API** -- primary fact-check retrieval
+- **FreeNewsAPI / NewsAPI** -- live news retrieval
+- **Schema.org ClaimReview** -- structured data for search engines
+
+---
+
+## Recent Updates
+
+- [x] **Evidence Intelligence Engine** -- retrieve-first, reason-second pipeline replacing black-box AI verdicts
+- [x] **Multi-Source Verification & Conflict Detection** -- atomic sub-claim decomposition and consensus audit
+- [x] **Echo-Chamber Deduplication** -- wire syndication clustering (PTI, AP, Reuters, ANI)
+- [x] **Claim Evolution Tracker** -- mutation timelines and verdict drift detection
+- [x] **Indian-Language Verification** -- Kannada, Hindi, Tamil, Telugu, Bengali with regional publisher registries
+- [x] **Research Document Analysis** -- paragraph chunking and passage citation tracing
+- [x] **Opt-In Claim Monitoring** -- SQLite-backed subscriber registry with update detection
+- [x] **Shareable Evidence Reports** -- HTML + Google ClaimReview Schema.org JSON-LD
+- [x] **Quality & Transparency Dashboard** -- real-time telemetry, latency, and human correction queue
+- [x] **Security hardening** -- restrictive CORS, env-var keys, session isolation, separate analysis log table
+- [x] **Windows CP1252 compatibility** -- all print statements use ASCII markers; no raw emoji in console output
+- [x] **file:// protocol support** -- frontend auto-detects protocol and routes API calls to correct base URL
+
+---
+
+## Team -- Thunderwing Falcons
+
+| Name | Role |
+|---|---|
+| **Tejash Raju K V** | Team Leader & Full-Stack Developer |
+| **Amrutha V** | Frontend Developer & UX Designer |
+| **Rakesh K** | Backend Developer & AI Specialist |
+
+---
 
 ## Credits
 
-- **Company**: Thunderwing Falcons - "Electrifying speed meets sharp precision"
-- **Prototype**: Echo Mind - "Suggesting intelligent responses and echoes of knowledge"
-- **Project**: Google Hackathon AI Fact-Checker
-- **Design**: Modern gradient UI with custom logo
+- **Company**: Thunderwing Falcons -- *"Electrifying speed meets sharp precision"*
+- **Prototype**: Echo Mind -- *"Suggesting intelligent responses and echoes of knowledge"*
+- **Competition**: Google Hackathon AI Fact-Checker
 - **Icons**: Font Awesome
 - **Fonts**: Google Fonts (Inter)
 
@@ -245,5 +335,5 @@ This project was created for educational and hackathon purposes.
 
 ---
 
-**Thunderwing Falcons** - Electrifying speed meets sharp precision  
-**Echo Mind** - Suggesting intelligent responses and echoes of knowledge ⚡🦅
+**Thunderwing Falcons** -- Electrifying speed meets sharp precision  
+**Echo Mind** -- Suggesting intelligent responses and echoes of knowledge

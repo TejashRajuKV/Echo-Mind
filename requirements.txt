@@ -6,3 +6,4 @@ requests
 feedparser
 schedule
 vertexai
+python-dotenv
