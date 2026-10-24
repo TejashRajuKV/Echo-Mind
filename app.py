@@ -70,6 +70,14 @@ def _session_db():
             FOREIGN KEY (session_id) REFERENCES user_sessions(session_id)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS rate_limit_buckets (
+            bucket_key TEXT NOT NULL,
+            hour_bucket INTEGER NOT NULL,
+            request_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (bucket_key, hour_bucket)
+        )
+    """)
     conn.commit()
     return conn
 
