@@ -1,7 +1,7 @@
 """Incremental verification primitives: auditable cache revalidation and conservative claim families."""
 from __future__ import annotations
 import hashlib, json, re, sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 import context_memory as memory
@@ -79,7 +79,7 @@ def revalidate_expired(limit=10, analyzer=None):
         lease=conn.execute("SELECT lease_until FROM revalidation_leases WHERE fingerprint=?",(fp,)).fetchone()
         if lease:
             conn.close(); output.append({"fingerprint":fp,"status":"already_running"}); continue
-        conn.execute("INSERT OR REPLACE INTO revalidation_leases VALUES(?,?)",(fp,datetime.now(timezone.utc).replace(microsecond=0).isoformat()))
+        conn.execute("INSERT OR REPLACE INTO revalidation_leases VALUES(?,?)",(fp,(datetime.now(timezone.utc)+timedelta(minutes=15)).isoformat()))
         cur=conn.execute("INSERT INTO cache_revalidation_runs(fingerprint,status,started_at) VALUES(?,?,?)",(fp,"running",now))
         run_id=cur.lastrowid; conn.commit(); conn.close()
         try:
