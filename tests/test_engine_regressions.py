@@ -83,9 +83,11 @@ class ReportSecurityTests(unittest.TestCase):
         self.assertIn("&lt;svg", report)
 
     def test_jsonld_cannot_break_out_of_script_context(self):
-        evil = '</script><script>alert(1)</script>'
-        rendered = json.dumps(generate_claim_review_jsonld({"claim": evil, "classification": "Suspicious"}))
-        self.assertNotIn("</script>", rendered.lower())
+        closing = "<" + "/script>"
+        evil = closing + "<script>alert(1)" + closing
+        report = generate_shareable_report_html({"classification": "Suspicious"}, evil)
+        self.assertNotIn(closing + "<script>alert(1)", report.lower())
+        self.assertIn(r"\\u003c/script\\u003e", report.lower())
 
     def test_unsafe_source_schemes_are_not_linked(self):
         report = generate_shareable_report_html({
