@@ -87,8 +87,10 @@ def revalidate_expired(limit=10, analyzer=None):
             sources=memory._safe_sources(fresh)
             if not sources:
                 raise ValueError("no_safe_sources")
-            old=memory.get_cached_analysis(item["claim"])
-            old_result=(old or {}).get("result") or {}
+            conn=_conn()
+            old_row=conn.execute("SELECT result_json FROM evidence_cache WHERE fingerprint=?",(fp,)).fetchone()
+            conn.close()
+            old_result=json.loads(old_row["result_json"]) if old_row else {}
             old_verdict=verdict(old_result) if old_result else "Expired/unknown"
             old_score=score(old_result) if old_result else None
             new_verdict=verdict(fresh); new_score=score(fresh)
