@@ -913,8 +913,8 @@ def correction_review_queue_endpoint():
 @rate_limited
 def notifications_endpoint():
     try:
-        from incremental_verification import list_notifications
-        return jsonify({"notifications": list_notifications(_derive_session_id())})
+        from notification_store import list_for_session
+        return jsonify({"notifications": list_for_session(_derive_session_id())})
     except Exception:
         app.logger.exception("Notification listing failed")
         return jsonify({"error": "server_error", "message": "Could not load notifications."}), 500
@@ -929,8 +929,8 @@ def notification_create_endpoint():
     if not data["title"].strip() or len(data["title"]) > 200 or len(data["body"]) > 4000:
         return jsonify({"error": "bad_request", "message": "title/body is empty or too long."}), 400
     try:
-        from incremental_verification import create_notification
-        return jsonify(create_notification(_derive_session_id(), data["title"], data["body"], data.get("kind", "info"), data.get("payload", {}))), 201
+        from notification_store import create
+        return jsonify(create(_derive_session_id(), data["title"], data["body"], data.get("kind", "info"), data.get("payload", {}))), 201
     except ValueError as exc:
         return jsonify({"error": "bad_request", "message": str(exc)}), 400
 
