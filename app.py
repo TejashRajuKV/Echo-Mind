@@ -124,6 +124,10 @@ def update_session(session_id: str, points: int, badges: list, claim_text: str,
         conn.close()
 
 
+# Legacy test-hook kept for existing test fixtures; counters are stored in SQLite now.
+_rate_counts: dict = {}
+
+
 # ---------------------------------------------------------------------------
 # SQLite-backed rate limiter shared across worker processes on one host.
 # For multi-instance deployments, use a shared gateway/Redis rate limiter.
