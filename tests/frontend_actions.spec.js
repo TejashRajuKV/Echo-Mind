@@ -31,6 +31,8 @@ const analysis = {
 };
 
 async function mockApi(page) {
+  // Keep the suite hermetic and avoid waiting for external font/icon CDNs.
+  await page.route('https://**/*', route => route.abort());
   await page.route(apiOrigin + '/**', async route => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -80,7 +82,7 @@ async function mockApi(page) {
 
 async function loadAnalysis(page) {
   await mockApi(page);
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('#claimInput').fill('A deterministic test claim');
   await page.locator('#checkClaim').click();
   await expect(page.locator('.action-toolbar')).toBeVisible();
