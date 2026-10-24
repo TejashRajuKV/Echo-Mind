@@ -43,6 +43,14 @@ class VerificationPolicyTests(unittest.TestCase):
         self.assertTrue(result["conflict_detected"])
         self.assertEqual(result["consensus_direction"], "disputed")
 
+    def test_syndicated_copies_across_domains_count_as_one_origin(self):
+        result = evaluate_conflict_and_consensus([
+            source("mirror-a.example", "supports"),
+            {**source("mirror-b.example", "supports"), "cluster_id": "wire:shared-story"},
+        ])
+        self.assertEqual(result["independent_publisher_count"], 1)
+        self.assertEqual(result["consensus_direction"], "unknown")
+
     def test_same_publisher_with_conflicting_stances_does_not_count_twice(self):
         result = evaluate_conflict_and_consensus([
             source("one.example", "supports"),
