@@ -679,12 +679,12 @@ def memory_clear_endpoint():
 @require_api_key
 @rate_limited
 def expired_context_cache_endpoint():
-    from context_memory import revalidation_candidates, cleanup_expired
+    from context_memory import revalidation_candidates
     limit = request.args.get("limit", default=100, type=int)
     if limit < 1 or limit > 500:
         return jsonify({"error": "bad_request", "message": "limit must be between 1 and 500."}), 400
     try:
-        return jsonify({"expired": revalidation_candidates(limit), "cleanup": cleanup_expired()})
+        return jsonify({"expired": revalidation_candidates(limit), "note": "Expired entries are listed but retained until a revalidation worker processes them."})
     except Exception:
         app.logger.exception("Expired cache inspection failed")
         return jsonify({"error": "server_error", "message": "Could not inspect expired cache."}), 500
