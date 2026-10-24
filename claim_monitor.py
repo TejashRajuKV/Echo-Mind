@@ -47,6 +47,10 @@ def _get_monitor_conn():
             FOREIGN KEY (monitor_id) REFERENCES claim_monitors(id)
         )
     """)
+    # Migrate existing databases created before email delivery tracking was added.
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(monitor_notifications)").fetchall()}
+    if "email_sent_at" not in columns:
+        conn.execute("ALTER TABLE monitor_notifications ADD COLUMN email_sent_at TEXT")
     conn.commit()
     return conn
 
@@ -117,6 +121,21 @@ def list_user_monitors(session_id: str) -> List[Dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def list_user_notifications(session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Return recent in-app notifications scoped to the anonymous session."""
+    conn = _get_monitor_conn()
+    try:
+        rows = conn.execute("""
+            SELECT n.id, n.monitor_id, n.trigger_reason, n.new_verdict, n.new_score,
+                   n.new_evidence_title, n.summary, n.notified_at, n.is_read
+            FROM monitor_notifications n JOIN claim_monitors m ON m.id = n.monitor_id
+            WHERE m.session_id = ? ORDER BY n.id DESC LIMIT ?
+        """, (session_id, max(1, min(int(limit), 100)))).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def check_monitored_claim_for_updates(monitor_id: int) -> Dict[str, Any]:
     """
     Re-evaluates a monitored claim and checks if significant new evidence or
@@ -158,11 +177,12 @@ def check_monitored_claim_for_updates(monitor_id: int) -> Dict[str, Any]:
 
         cursor.execute("""
             UPDATE claim_monitors
-            SET last_checked = ?, updates_count = updates_count + 1
+            SET last_checked = ?, updates_count = updates_count + 1,
+                baseline_verdict = ?, baseline_score = ?, baseline_evidence_count = ?
             WHERE id = ?
-        """, (now, monitor_id))
+        """, (now, current_verdict, current_score, current_evidence_count, monitor_id))
     else:
-        cursor.execute("UPDATE claim_monitors SET last_checked = ? WHERE id = ?", (now, monitor_id))
+        cursor.execute("UPDATE claim_monitors SET last_checked = ?, baseline_evidence_count = MAX(baseline_evidence_count, ?) WHERE id = ?", (now, current_evidence_count, monitor_id))
 
     conn.commit()
     conn.close()
