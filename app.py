@@ -184,7 +184,7 @@ def require_api_key(f):
                 "error": "server_misconfigured",
                 "message": "ECHO_MIND_API_KEY is not set on the server.",
             }), 500
-        provided = request.headers.get("X-API-Key") or request.args.get("api_key")
+        provided = request.headers.get("X-API-Key")
         if not provided or provided != API_KEY:
             return jsonify({
                 "error": "unauthorized",
@@ -283,6 +283,8 @@ def claim_evolution_endpoint():
     claim = request.args.get("claim", "").strip()
     if not claim:
         return jsonify({"error": "bad_request", "message": "'claim' query parameter required."}), 400
+    if len(claim) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Claim exceeds maximum accepted length."}), 400
     try:
         from claim_evolution import get_claim_evolution_timeline
         return jsonify(get_claim_evolution_timeline(claim))
@@ -304,6 +306,8 @@ def document_analysis_endpoint():
         return jsonify({"error": "bad_request", "message": "Fields 'text' and 'title' must be strings."}), 400
     doc_text = doc_text.strip()
     doc_title = doc_title.strip() or "Submitted Document"
+    if len(doc_title) > 200:
+        return jsonify({"error": "bad_request", "message": "Document title must be 200 characters or fewer."}), 400
     if not doc_text:
         return jsonify({"error": "bad_request", "message": "'text' field required with document content."}), 400
     if len(doc_text) > 30000:
@@ -424,6 +428,8 @@ def submit_correction_endpoint():
     contact_email = data.get("contact_email", "").strip()
     if len(claim_text) > MAX_CLAIM_LENGTH or len(rationale) > 10000 or len(evidence_url) > 2048 or len(contact_email) > 254:
         return jsonify({"error": "bad_request", "message": "One or more correction fields exceed the maximum length."}), 400
+    if contact_email and ("@" not in contact_email or any(ch.isspace() for ch in contact_email)):
+        return jsonify({"error": "bad_request", "message": "contact_email must be a valid email address or blank."}), 400
     from urllib.parse import urlparse
     parsed_evidence_url = urlparse(evidence_url)
     if parsed_evidence_url.scheme not in ("http", "https") or not parsed_evidence_url.netloc:
