@@ -676,7 +676,7 @@ def personalized_tip(category):
 def analyze_claim(text, current_points=0, current_badges=None, save_to_database=True):
     """
     Analyzes a claim using the Evidence Intelligence Engine:
-    1. Gathers multi-source evidence (Google Fact Check, FreeNewsAPI, local DB, auto-updater)
+    1. Gathers multi-source evidence (FreeNewsAPI/NewsAPI, local DB, auto-updater)
     2. Decomposes claim into atomic sub-claims
     3. Runs multi-source conflict & consensus audit
     4. Computes explainable multi-factor credibility score

@@ -299,7 +299,6 @@ function initializeDemoFunctionality() {
         const apiDecision = data.api_decision || {};
         const apiRouteLabels = {
             local_factchecks: 'Local fact-check archive',
-            google_fact_check: 'Google Fact Check Tools',
             live_news: 'Live news',
             realtime_cache: 'Live context cache'
         };

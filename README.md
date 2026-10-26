@@ -16,7 +16,7 @@ The GitHub Pages workflow deploys the repository root on pushes to main. Render 
 ## How a claim check works
 
 1. The API decision engine chooses which retrieval providers to use based on claim topic, language, freshness, available keys, and evidence already found.
-2. The backend searches the local fact-check archive and, when configured, Google Fact Check Tools. It adds cached real-time context for relevant fast-changing topics.
+2. The backend searches the local fact-check archive and, when configured, live news providers. It adds cached real-time context for relevant fast-changing topics.
 3. When live-news credentials are configured, news search is used for time-sensitive claims or when the first evidence pass is sparse or conflicting.
 4. The verification engine labels source direction, groups likely syndicated copies, decomposes compound claims, and calculates an evidence score.
 5. Gemini receives the retrieved evidence and audit to write an explanation. It does not act as the news provider. GEMINI_API_KEY selects the Gemini Developer API; without it, the backend can use configured Vertex AI credentials. If neither client is available, it uses a deterministic evidence-only explanation.
@@ -67,7 +67,6 @@ On Windows PowerShell, activate the environment with .venv\Scripts\Activate.ps1.
 | GEMINI_API_KEY | Gemini Developer API key; preferred for grounded explanations and follow-up answers |
 | GEMINI_MODEL | Gemini model name; defaults to gemini-3.5-flash |
 | PROJECT_ID and LOCATION | Vertex AI project and region, used when no Gemini Developer API key is configured |
-| GOOGLE_FACT_CHECK_API_KEY | Enables Google Fact Check Tools retrieval |
 | FREE_NEWS_API_KEY or FREENEWSAPI_KEY | Enables FreeNewsAPI retrieval |
 | NEWSAPI_KEY or NEWS_API_KEY | NewsAPI fallback when FreeNewsAPI is unavailable or not configured |
 | ECHO_MIND_API_KEY | Protects admin/maintenance endpoints such as statistics and correction review |
@@ -79,7 +78,7 @@ On Windows PowerShell, activate the environment with .venv\Scripts\Activate.ps1.
 
 The Gemini key stays on the backend and must never be placed in browser JavaScript or a public GitHub Pages variable. API providers have their own quotas and terms. ECHO_MIND_API_KEY protects administrative requests and remains a legacy Gemini-key fallback for older deployments; set GEMINI_API_KEY separately so the two secrets are not confused.
 
-Google Fact Check Tools uses its own configured key (`GOOGLE_FACT_CHECK_API_KEY`) from a Google Cloud project with the Fact Check Tools API enabled. A Gemini Developer API key is not a substitute. In the result's “Why these sources?” panel, `no matches` means Google accepted the request but found no published reviews; `error` means the request failed and should not be interpreted as zero matches.
+News APIs retrieve live articles when the claim is time-sensitive or the first evidence pass is sparse. Gemini uses those retrieved articles and the local archive to produce an explanation; it does not retrieve news on its own.
 
 ## Deploying
 

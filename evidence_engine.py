@@ -5,13 +5,12 @@ A multi-tier evidence retrieval, ranking, and deduplication engine that
 gathers primary and secondary sources before AI reasoning.
 
 Key Capabilities:
-1. Google Fact Check Tools API connector (Snopes, PolitiFact, Alt News, etc.)
-2. FreeNewsAPI & NewsAPI live news connectors
-3. Verified Local Fact-Check Database connector
-4. Real-time auto-updater context integration
-5. Domain Authority scoring (Government/Academic/Wires/Commercial)
-6. Echo-chamber & Wire Syndication detection (deduplication of mirrored articles)
-7. Source Stance Tagging (Supports / Refutes / Neutral Context)
+1. FreeNewsAPI & NewsAPI live news connectors
+2. Verified Local Fact-Check Database connector
+3. Real-time auto-updater context integration
+4. Domain Authority scoring (Government/Academic/Wires/Commercial)
+5. Echo-chamber & Wire Syndication detection (deduplication of mirrored articles)
+6. Source Stance Tagging (Supports / Refutes / Neutral Context)
 """
 
 import os
@@ -202,102 +201,7 @@ def detect_evidence_stance(claim: str, title: str, text: str, rating: str = "") 
 
 
 # ---------------------------------------------------------------------------
-# Source Connector 1: Google Fact Check Tools API
-# ---------------------------------------------------------------------------
-def query_google_fact_check(
-    query: str, max_results: int = 5, language_code: str = "en",
-    status_out: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Query Google's Fact Check Tools API for certified reviews.
-    Endpoint: https://factchecktools.googleapis.com/v1alpha1/claims:search
-    """
-    api_key = os.environ.get("GOOGLE_FACT_CHECK_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        if status_out is not None:
-            status_out.update({"status": "not_configured", "error": "No Google Fact Check API key is configured."})
-        return []
-
-    url = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
-    params = {
-        "query": query,
-        "key": api_key,
-        "pageSize": max_results,
-        "languageCode": language_code or "en",
-    }
-
-    results = []
-    try:
-        resp = requests.get(url, params=params, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            claims = data.get("claims", [])
-            for item in claims:
-                text = item.get("text", "")
-                claimant = item.get("claimant", "")
-                claim_date = item.get("claimDate", "")
-
-                for review in item.get("claimReview", []):
-                    publisher = review.get("publisher", {}).get("name", "Fact Checker")
-                    site = review.get("publisher", {}).get("site", "")
-                    review_url = review.get("url", "")
-                    rating = review.get("textualRating", "")
-                    review_title = review.get("title", text)
-
-                    auth = get_domain_authority(review_url or site, publisher)
-                    synd = detect_syndication(review_title, text, publisher)
-                    stance = detect_evidence_stance(query, review_title, rating, rating)
-
-                    results.append({
-                        "source_type": "google_fact_check",
-                        "title": review_title,
-                        "claim_reviewed": text,
-                        "claimant": claimant,
-                        "publisher": publisher,
-                        "url": review_url,
-                        "date": claim_date or review.get("reviewDate", ""),
-                        "textual_rating": rating,
-                        "stance": stance,
-                        "excerpt": f"Rating: {rating}. Reviewed by {publisher}. Claim: '{text}'",
-                        "authority_score": auth["score"],
-                        "authority_tier": auth["tier"],
-                        "domain": auth["domain"],
-                        "is_syndicated": synd["is_syndicated"],
-                        "cluster_id": synd["cluster_id"],
-                        "wire_agency": synd["wire_agency"],
-                    })
-            if status_out is not None:
-                status_out.update({
-                    "status": "matches" if results else "no_matches",
-                    "http_status": 200,
-                    "error": None,
-                })
-        else:
-            try:
-                error_data = resp.json().get("error", {})
-            except Exception:
-                error_data = {}
-            message = str(error_data.get("message") or "Google Fact Check API rejected the request.")[:180]
-            error_code = error_data.get("status") or error_data.get("code")
-            if status_out is not None:
-                status_out.update({
-                    "status": "error",
-                    "http_status": resp.status_code,
-                    "error_code": error_code,
-                    "error": message,
-                })
-            print(f"[WARN] Google Fact Check API returned HTTP {resp.status_code} ({error_code or 'unknown error'}).")
-    except Exception as exc:
-        if status_out is not None:
-            status_out.update({"status": "error", "error": f"Google Fact Check request failed ({type(exc).__name__})."})
-        # Do not print exception text because request URLs can contain API keys.
-        print(f"[WARN] Google Fact Check API request failed ({type(exc).__name__}).")
-
-    return results
-
-
-# ---------------------------------------------------------------------------
-# Source Connector 2: FreeNewsAPI & NewsAPI Connector
+# Source Connector 1: FreeNewsAPI & NewsAPI Connector
 # ---------------------------------------------------------------------------
 def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
     """
@@ -404,7 +308,7 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# Source Connector 3: Local SQLite Fact-Check Database Connector
+# Source Connector 2: Local SQLite Fact-Check Database Connector
 # ---------------------------------------------------------------------------
 def query_local_factcheck_db(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
     """
@@ -550,30 +454,17 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     4. Ranks by Domain Authority + Stance Relevance
     5. Computes source distribution statistics
     """
-    from api_decision_engine import (
-        build_api_decision, finalize_api_decision, is_relevant_officeholder_article,
-    )
+    from api_decision_engine import build_api_decision, finalize_api_decision, is_relevant_officeholder_article
     from publisher_identity import publisher_identity
 
     raw_sources: List[Dict[str, Any]] = []
     decision = build_api_decision(claim)
 
-    # Verified claim reviews and local archive are the low-latency first pass.
-    g_route = decision["routes"]["google_fact_check"]
-    google_status: Dict[str, Any] = {}
-    g_sources = query_google_fact_check(
-        claim, max_results=4, language_code=decision.get("language_code", "en"),
-        status_out=google_status,
-    ) if g_route["used"] else []
-    if not g_route["used"]:
-        google_status = {"status": "not_configured"}
-    raw_sources.extend(g_sources)
-
     # The local archive is always queried as it has no external API cost.
     db_sources = query_local_factcheck_db(claim, max_results=4)
     raw_sources.extend(db_sources)
 
-    direct_sources = g_sources + db_sources
+    direct_sources = db_sources
     direct_stances = {source.get("stance") for source in direct_sources}
     direct_publishers = {publisher_identity(source) for source in direct_sources}
     # Repeated URLs or multiple records from one outlet are not independent
@@ -605,10 +496,8 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         news_checked=news_checked,
         realtime_results=len(rt_sources),
         news_results=len(news_sources),
-        google_results=len(g_sources),
         local_results=len(db_sources),
         direct_source_count=direct_source_count,
-        google_status=google_status,
     )
 
     # --- Deduplication and Cluster Analysis ---

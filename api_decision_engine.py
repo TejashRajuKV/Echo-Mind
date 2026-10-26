@@ -107,9 +107,6 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
         or bool(re.search(r"\b20\d{2}\b", normalized))
     )
     use_realtime_cache = topic in {"sports", "weather"} or "breaking news" in normalized or "live score" in normalized
-    # Gemini Developer API keys are not interchangeable with a Cloud API key
-    # authorized for Fact Check Tools. Keep provider configuration distinct.
-    google_ready = _has_key("GOOGLE_FACT_CHECK_API_KEY", "GOOGLE_API_KEY")
     news_key_ready = _has_key("FREE_NEWS_API_KEY", "FREENEWSAPI_KEY", "NEWSAPI_KEY", "NEWS_API_KEY")
     news_language_supported = language["code"] == "en"
     news_ready = news_key_ready and news_language_supported
@@ -130,12 +127,6 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
         "use_realtime_cache": use_realtime_cache,
         "routes": {
             "local_factchecks": {"configured": True, "used": True, "reason": "Always search the local verified archive first."},
-            "google_fact_check": {
-                "configured": google_ready,
-                "used": google_ready,
-                "provider": "Google Fact Check Tools API",
-                "reason": "Search certified claim reviews for this factual claim." if google_ready else "Skipped: configure a Google Cloud key with Fact Check Tools API enabled as GOOGLE_FACT_CHECK_API_KEY.",
-            },
             "live_news": {
                 "configured": news_ready,
                 "used": False,
@@ -162,30 +153,12 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
 
 def finalize_api_decision(
     decision: Dict[str, Any], *, realtime_checked: bool, news_checked: bool,
-    realtime_results: int, news_results: int, google_results: int,
+    realtime_results: int, news_results: int,
     local_results: int, direct_source_count: int,
-    google_status: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Attach actual retrieval outcomes to the initial routing plan."""
     result = {**decision, "routes": {name: dict(route) for name, route in decision["routes"].items()}}
-    result["routes"]["google_fact_check"]["results_found"] = google_results
     result["routes"]["local_factchecks"]["results_found"] = local_results
-    google_route = result["routes"]["google_fact_check"]
-    google_status = google_status or {}
-    if google_status.get("status"):
-        google_route["status"] = google_status["status"]
-        google_route["http_status"] = google_status.get("http_status")
-        google_route["error_code"] = google_status.get("error_code")
-        google_route["error"] = google_status.get("error")
-        if google_status["status"] == "no_matches":
-            google_route["reason"] = "Request succeeded; Google has no matching published fact-checks for this wording."
-        elif google_status["status"] == "matches":
-            google_route["reason"] = f"Request succeeded; found {google_results} published fact-check review(s)."
-        elif google_status["status"] == "error":
-            code = google_status.get("http_status") or google_status.get("error_code") or "network error"
-            google_route["reason"] = f"Google Fact Check request failed ({code}); this is an API error, not a zero-match result."
-        elif google_status["status"] == "not_configured":
-            google_route["reason"] = "Skipped: configure a Google Cloud key with Fact Check Tools API enabled as GOOGLE_FACT_CHECK_API_KEY."
     realtime = result["routes"]["realtime_cache"]
     realtime["used"] = bool(realtime_checked)
     if realtime_checked and realtime_results:
