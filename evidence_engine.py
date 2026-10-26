@@ -539,7 +539,15 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
 
     direct_sources = g_sources + db_sources
     direct_stances = {source.get("stance") for source in direct_sources}
-    evidence_is_sparse = len(direct_sources) < 2
+    direct_publishers = {
+        str(source.get("domain") or source.get("publisher") or "").strip().lower().removeprefix("www.")
+        for source in direct_sources
+        if str(source.get("domain") or source.get("publisher") or "").strip()
+    }
+    # Repeated URLs or multiple records from one outlet are not independent
+    # coverage and should not suppress the live-news follow-up route.
+    direct_source_count = len(direct_publishers)
+    evidence_is_sparse = direct_source_count < 2
     direct_evidence_conflicts = "supports" in direct_stances and "refutes" in direct_stances
     needs_live_news = decision["time_sensitive"] or evidence_is_sparse or direct_evidence_conflicts
 
@@ -564,7 +572,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         news_results=len(news_sources),
         google_results=len(g_sources),
         local_results=len(db_sources),
-        direct_source_count=len(direct_sources),
+        direct_source_count=direct_source_count,
     )
 
     # --- Deduplication and Cluster Analysis ---

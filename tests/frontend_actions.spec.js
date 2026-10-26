@@ -112,14 +112,17 @@ test('monitor action submits subscription and shows confirmation', async ({ page
 });
 
 test('share report action opens report in a new tab', async ({ page, context }) => {
-  const popupPromise = context.waitForEvent('page');
   await page.locator('#btnShareReport').click();
+  await expect(page.locator('#echoModalBackdrop')).toContainText('A report link is ready');
+  const popupPromise = context.waitForEvent('page');
+  await page.locator('.share-preview-link').click();
   const popup = await popupPromise;
   await popup.waitForLoadState();
   await expect(popup.locator('h1')).toHaveText('Mock report opened');
 });
 
 test('document scan action submits pasted content and renders results', async ({ page }) => {
+  await page.locator('.action-toolbar-more summary').click();
   await page.locator('#btnOpenDocAnalysis').click();
   await page.locator('#docTitleInput').fill('Mock document');
   await page.locator('#docContentInput').fill('A paragraph with a claim.');
@@ -129,12 +132,14 @@ test('document scan action submits pasted content and renders results', async ({
 });
 
 test('transparency action fetches and renders dashboard metrics', async ({ page }) => {
+  await page.locator('.action-toolbar-more summary').click();
   await page.locator('#btnOpenTransparency').click();
   await expect(page.locator('#echoModalBackdrop')).toContainText('Citation Coverage');
   await expect(page.locator('#echoModalBackdrop')).toContainText('120 ms');
 });
 
 test('correction action submits feedback and displays acknowledgement', async ({ page }) => {
+  await page.locator('.action-toolbar-more summary').click();
   await page.locator('#btnSubmitCorrection').click();
   await page.locator('#corrUrlInput').fill('https://example.org/primary-evidence');
   await page.locator('#corrRationaleInput').fill('Mocked primary evidence rationale.');

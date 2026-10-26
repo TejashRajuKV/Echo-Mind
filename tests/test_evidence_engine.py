@@ -11,6 +11,10 @@ def test_unrelated_news_copy_is_not_automatically_stance_evidence():
 
 
 def test_retrieval_deduplicates_duplicate_urls_and_syndication(monkeypatch):
+    # The routing engine skips connectors that have no configured key. These
+    # test values only enable the mocked providers; no external request is made.
+    monkeypatch.setenv('GOOGLE_FACT_CHECK_API_KEY', 'test-google-key')
+    monkeypatch.setenv('FREE_NEWS_API_KEY', 'test-news-key')
     first = {'url': 'https://publisher-a.example/story', 'title': 'A matching shared headline', 'publisher': 'Publisher A', 'domain': 'publisher-a.example', 'authority_score': 90, 'stance': 'supports', 'cluster_id': 'same-story'}
     duplicate_url = dict(first)
     lower_authority_mirror = {'url': 'https://publisher-b.example/story', 'title': 'A matching shared headline', 'publisher': 'Publisher B', 'domain': 'publisher-b.example', 'authority_score': 70, 'stance': 'supports', 'cluster_id': 'same-story'}

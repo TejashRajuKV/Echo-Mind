@@ -106,7 +106,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
                 ),
             },
         },
-        "reasoning": "Vertex AI when available; otherwise the deterministic analysis fallback.",
+        "reasoning": "Gemini explains retrieved evidence when configured; otherwise the deterministic evidence-only fallback is used.",
     }
 
 

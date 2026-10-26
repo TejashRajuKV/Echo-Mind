@@ -8,8 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTypingEffect();
 });
 
-// Keep the public site pointed at the active Cloud Run service. The older
-// project-number URL was retired and now returns a Google Frontend 503.
+// Keep the public site pointed at the active Render API service.
 const ECHO_MIND_API_BASE = 'https://echo-mind-5act.onrender.com';
 
 // Anonymous, browser-local identity used to scope claim history without login.
@@ -689,12 +688,12 @@ function initializeDemoFunctionality() {
                 <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <i class="fas fa-exclamation-circle"></i> Service Notice
                 </h3>
-                <p style="color: #7f1d1d; margin-bottom: 1rem;">${isLocal() ? 'Could not connect to the local analysis service.' : 'The hosted analysis service is currently unavailable. The public site depends on its Cloud Run backend; try again after the service is restored.'}</p>
+                <p style="color: #7f1d1d; margin-bottom: 1rem;">${isLocal() ? 'Could not connect to the local analysis service.' : 'The hosted analysis service is currently unavailable. Check the Render backend and its health endpoint, then try again.'}</p>
                 <p style="font-family: monospace; background: #ffffff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; color: #991b1b; border: 1px solid #fecaca;">${errorMessage}</p>
                 <div style="margin-top: 1rem; padding: 1rem; background: #ffffff; border-radius: 8px; border: 1px solid #fecaca; font-size: 0.88rem; color: #7f1d1d;">
                     <strong>Next Steps:</strong>
                     <ol style="margin: 0.5rem 0 0 1.25rem; line-height: 1.6;">
-                        ${isLocal() ? '<li>Start the backend with <code>python app.py</code> and check <code>http://localhost:8080/health</code>.</li>' : '<li>Check the Cloud Run service and restore billing for project <code>echo-mind-472808</code>.</li>'}
+                        ${isLocal() ? '<li>Start the backend with <code>python app.py</code> and check <code>http://localhost:8080/health</code>.</li>' : '<li>Check <a href="https://echo-mind-5act.onrender.com/health" target="_blank" rel="noopener noreferrer">the Render API health endpoint</a> and review the service deployment logs.</li>'}
                     </ol>
                 </div>
             </div>
