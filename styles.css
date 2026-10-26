@@ -1921,9 +1921,9 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .demo-examples-label { color: var(--muted-ink); font: 500 .62rem var(--mono); letter-spacing: .08em; }
 .demo-example-chip { border-radius: 2px; background: #f8f8fb; border-color: #d6d9e2; color: #444a56; font-size: .75rem; }
 .demo-example-chip:hover { background: var(--blue); border-color: var(--blue); color: white; }
-.demo-container { display: grid; grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr); align-items: start; gap: 20px; }
-.demo-input, .demo-output { border: 1px solid #d6d9e2; border-radius: 0; background: var(--paper-light); padding: 22px; box-shadow: 5px 6px 0 rgba(32,35,31,.08); }
-.demo-input textarea { display: block; width: 100%; min-height: 150px; max-height: 320px; box-sizing: border-box; padding: 8px 4px 14px; overflow-y: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 500 1.15rem/1.6 var(--display); resize: vertical; }
+.demo-container { display: grid; width: 100%; max-width: 1320px; margin: 0 auto; grid-template-columns: minmax(320px, .8fr) minmax(0, 1.2fr); align-items: start; gap: 24px; }
+.demo-input, .demo-output { min-width: 0; border: 1px solid #d6d9e2; border-radius: 0; background: var(--paper-light); padding: 28px; box-shadow: 5px 6px 0 rgba(32,35,31,.08); }
+.demo-input textarea { display: block; width: 100%; min-height: 210px; max-height: 420px; box-sizing: border-box; padding: 8px 4px 14px; overflow-y: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 500 1.2rem/1.6 var(--display); resize: vertical; }
 .demo-input textarea:focus { outline: none; box-shadow: none; border-bottom-color: var(--blue); }
 .demo-input .btn { margin-top: 16px; }
 .demo-output { min-height: 275px; }
