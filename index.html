@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo Mind — The Open Evidence Project</title>
-    <link rel="stylesheet" href="styles.css?v=20261026-claim-process">
+    <link rel="stylesheet" href="styles.css?v=20261026-workspace-preview">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Backup Font Awesome CDN -->
@@ -283,7 +283,7 @@
             <span class="workspace-kicker">THE EVIDENCE DESK&nbsp; / &nbsp;01</span>
             <h2>Look closer.<br><em>Know more.</em></h2>
             <p>Keep a claim, its sources, and the story behind it in one place.</p>
-            <a class="workspace-jump" href="#workspace-create">Start an investigation <span aria-hidden="true">↘</span></a>
+            <a class="workspace-jump" href="#workspace-tools">Preview the workspace <span aria-hidden="true">↘</span></a>
           </div>
           <figure class="workspace-hero-art">
             <img src="assets/echo-evidence-collage.webp" alt="Hand-drawn collage of evidence notes linked by orange lines">
@@ -296,7 +296,8 @@
           <h3>Your investigation, in pieces.</h3>
           <p>Similarity and translation help you navigate. Evidence is what verifies a claim.</p>
         </div>
-        <div class="workspace-grid">
+        <div class="workspace-locked-shell" id="workspace-tools">
+        <div class="workspace-grid" inert aria-hidden="true">
           <article class="workspace-card workspace-card-main">
             <div class="workspace-card-top"><span class="workspace-card-number">01</span><span class="workspace-card-label">CLAIM FILE</span></div>
             <h3>Start an investigation</h3>
@@ -335,6 +336,14 @@
             <button id="workspace-save-sources" class="workspace-button workspace-button-dark" type="button" disabled>Build source map <span aria-hidden="true">↗</span></button>
             <pre id="workspace-graph"></pre>
           </article>
+        </div>
+        <div class="workspace-coming-soon" role="status" aria-live="polite">
+          <div class="workspace-coming-soon-card">
+            <span class="workspace-coming-soon-label"><i aria-hidden="true"></i> In progress</span>
+            <h4>More tools, coming soon.</h4>
+            <p>We’re refining this workspace before these features are available.</p>
+          </div>
+        </div>
         </div>
         <p id="workspace-status" class="workspace-status" role="status" aria-live="polite"></p>
       </div>

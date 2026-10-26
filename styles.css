@@ -2116,7 +2116,15 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .workspace-heading { display: grid; grid-template-columns: .8fr 1.4fr .8fr; gap: 22px; align-items: end; margin-bottom: 26px; }
 .workspace-heading h3 { margin: 0; color: var(--ink, #20231f); font: 600 clamp(1.8rem, 3.4vw, 3.2rem)/1 var(--display, Georgia, serif); letter-spacing: -.045em; }
 .workspace-heading > p { max-width: 250px; justify-self: end; margin: 0; color: var(--muted-ink, #72736d); font-size: .74rem; line-height: 1.55; }
+.workspace-locked-shell { position: relative; isolation: isolate; }
 .workspace-grid { display: grid; grid-template-columns: 1.1fr .9fr .9fr; gap: 16px; align-items: stretch; }
+.workspace-grid[inert] { opacity: .58; user-select: none; }
+.workspace-coming-soon { position: absolute; z-index: 3; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(245, 241, 232, .56); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.workspace-coming-soon-card { width: min(100%, 440px); padding: clamp(22px, 3vw, 34px); border: 1px solid rgba(222, 216, 203, .95); background: rgba(255, 253, 248, .9); box-shadow: 6px 7px 0 rgba(32, 35, 31, .08); text-align: center; }
+.workspace-coming-soon-label { display: inline-flex; align-items: center; gap: 8px; color: var(--coral, #ef8566); font: 500 .62rem/1.4 var(--mono, monospace); letter-spacing: .13em; text-transform: uppercase; }
+.workspace-coming-soon-label i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(239, 133, 102, .15); }
+.workspace-coming-soon-card h4 { margin: 13px 0 8px; color: var(--ink, #20231f); font: 600 clamp(1.6rem, 3vw, 2.15rem)/1.08 var(--display, Georgia, serif); letter-spacing: -.035em; }
+.workspace-coming-soon-card p { max-width: 340px; margin: 0 auto; color: var(--muted-ink, #72736d); font-size: .78rem; line-height: 1.6; }
 .workspace-card { min-width: 0; padding: clamp(18px, 2.3vw, 30px); border: 1px solid #ded8cb; background: var(--paper-light, #fffdf8); box-shadow: 5px 6px 0 rgba(32,35,31,.045); }
 .workspace-card-main { border-top: 4px solid var(--coral, #ef8566); }
 .workspace-card-ocr { border-top: 4px solid #315fc7; }
