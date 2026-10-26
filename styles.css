@@ -1917,7 +1917,30 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .demo { padding: 100px 0 110px; background: #e9edf5; position: relative; }
 .demo::before { content: 'THE WORKBENCH'; position: absolute; top: 38px; left: max(34px, calc((100% - 1172px)/2)); color: var(--blue); font: 500 .65rem var(--mono); letter-spacing: .14em; }
 .demo .section-title { text-align: left; }
-.demo .section-subtitle { margin: 0 0 2rem; text-align: left; }
+.demo .section-subtitle { margin: 0 0 1.5rem; text-align: left; }
+.claim-process {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 980px;
+    margin: 0 0 1.6rem;
+    padding: 0;
+    list-style: none;
+    border: 1px solid #d6d9e2;
+    background: rgba(255, 253, 248, .76);
+    box-shadow: 4px 5px 0 rgba(32, 35, 31, .05);
+}
+.claim-process-step {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+    padding: 16px 20px;
+}
+.claim-process-step + .claim-process-step { border-left: 1px solid #d6d9e2; }
+.claim-process-number { color: var(--coral); font: italic 1.55rem/1 var(--display); }
+.claim-process-copy { display: grid; gap: 4px; min-width: 0; }
+.claim-process-copy strong { color: var(--ink); font-size: .84rem; font-weight: 700; }
+.claim-process-copy small { color: var(--muted-ink); font: 500 .62rem/1.4 var(--mono); }
 .demo-examples-label { color: var(--muted-ink); font: 500 .62rem var(--mono); letter-spacing: .08em; }
 .demo-example-chip { border-radius: 2px; background: #f8f8fb; border-color: #d6d9e2; color: #444a56; font-size: .75rem; }
 .demo-example-chip:hover { background: var(--blue); border-color: var(--blue); color: white; }
@@ -1982,6 +2005,10 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
     .demo { padding: 82px 0 75px; }
     .demo::before { top: 26px; left: 22px; }
     .demo .section-title { font-size: 2.8rem; }
+    .claim-process { grid-template-columns: 1fr; margin-bottom: 1.35rem; }
+    .claim-process-step { padding: 12px 15px; }
+    .claim-process-step + .claim-process-step { border-left: 0; border-top: 1px solid #d6d9e2; }
+    .claim-process-number { font-size: 1.25rem; }
     .demo-quick-examples { margin-bottom: 1rem; }
     .demo-input, .demo-output { padding: 17px; }
 }
