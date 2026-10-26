@@ -2065,6 +2065,10 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .reasoning-mode { display: inline-block; margin: 0 0 12px; border: 1px solid #d6d9e2; padding: 5px 8px; color: #525866; font: 500 .62rem var(--mono, monospace); }
 .reasoning-mode-ai { border-color: #b8c9f3; background: #f0f4ff; color: #284f9e; }
 .reasoning-mode-fallback { border-color: #efd5a4; background: #fff8e8; color: #785719; }
+.reasoning-copy p + p, .reasoning-copy h5 { margin-top: .85rem; }
+.reasoning-copy h5 { color: var(--ink); font-size: .92rem; }
+.reasoning-copy ul, .reasoning-copy ol { padding-left: 1.35rem; }
+.reasoning-copy li + li { margin-top: .3rem; }
 
 /* Investigation workspace: editorial evidence desk */
 .investigation-workspace { position: relative; overflow: hidden; padding: clamp(56px, 8vw, 112px) 0 clamp(68px, 8vw, 120px); background: var(--paper, #f4f1e9); color: var(--ink, #20231f); }

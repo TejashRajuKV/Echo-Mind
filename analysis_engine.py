@@ -762,9 +762,26 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         score = min(score, 49)
     score = max(0, min(100, score))
 
-    explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on retrieved evidence.")
+    model_verdict = model_analysis.get("classification", "Unknown")
+    explanation_mode = model_analysis.get("mode", "evidence_fallback")
     if verdict == "Suspicious":
-        explanation = reconciliation_reason + "\n\n" + str(explanation)
+        explanation = (
+            f"{reconciliation_reason} The retrieved trail contains "
+            f"{cons.get('supporting_sources_count', 0)} supporting, "
+            f"{cons.get('refuting_sources_count', 0)} refuting, and "
+            f"{cons.get('neutral_sources_count', 0)} neutral/context sources. "
+            "This source mix does not meet the evidence threshold for a decisive verdict. "
+            "A source may point strongly in one direction, but this result remains unverified until independent directional evidence is available."
+        )
+        explanation_mode = "evidence_reconciled"
+    elif model_verdict != verdict:
+        explanation = (
+            f"{reconciliation_reason} The displayed verdict follows the retrieved-source audit; "
+            "the model's initial label was not used because it did not match that audit."
+        )
+        explanation_mode = "evidence_reconciled"
+    else:
+        explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on retrieved evidence.")
     model_tips = model_analysis.get("tips", [])
     all_tips = [tip for tip in model_tips if isinstance(tip, str) and tip.strip()][:4]
     if not all_tips:
@@ -882,7 +899,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         "classification":        verdict,
         "score":                 score,
         "explanation":           explanation,
-        "explanation_mode":      model_analysis.get("mode", "evidence_fallback"),
+        "explanation_mode":      explanation_mode,
         "evidence":              evidence_text,
         "evidence_sources":      evidence_cards,
         "api_decision":          evidence_data.get("api_decision", {}),

@@ -43,6 +43,66 @@ function escapeHTML(value) {
     }[character]));
 }
 
+function renderExplanationMarkdown(value) {
+    const text = String(value ?? '')
+        .replace(/\\r\\n|\\n|&#x0*a;|&#(?:10|13);/gi, '\n')
+        .replace(/&#x0*20;|&#0*32;|&nbsp;/gi, ' ')
+        .replace(/&amp;#x0*a;/gi, '\n')
+        .replace(/&amp;#x0*20;/gi, ' ')
+        .replace(/&amp;/gi, '&');
+    const lines = text.split(/\r?\n/);
+    const blocks = [];
+    let paragraph = [];
+    let listType = '';
+    let listItems = [];
+
+    const inline = line => escapeHTML(line)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    const flushParagraph = () => {
+        if (!paragraph.length) return;
+        blocks.push(`<p>${inline(paragraph.join(' '))}</p>`);
+        paragraph = [];
+    };
+    const flushList = () => {
+        if (!listItems.length) return;
+        blocks.push(`<${listType}>${listItems.map(item => `<li>${inline(item)}</li>`).join('')}</${listType}>`);
+        listType = '';
+        listItems = [];
+    };
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            flushParagraph();
+            flushList();
+            continue;
+        }
+        if (/^#{1,6}$/.test(line)) continue;
+        const bullet = line.match(/^[-*]\s+(.+)$/);
+        const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+        if (bullet || numbered) {
+            flushParagraph();
+            const nextType = numbered ? 'ol' : 'ul';
+            if (listType && listType !== nextType) flushList();
+            listType = nextType;
+            listItems.push((bullet || numbered)[1]);
+            continue;
+        }
+        flushList();
+        const heading = line.match(/^\*\*(.+)\*\*:?$/) || line.match(/^#{1,4}\s+(.+)$/);
+        if (heading) {
+            flushParagraph();
+            blocks.push(`<h5>${inline(heading[1].replace(/:$/, ''))}</h5>`);
+        } else {
+            paragraph.push(line.replace(/^\*\*|\*\*$/g, ''));
+        }
+    }
+    flushParagraph();
+    flushList();
+    return blocks.join('');
+}
+
 function initializeMobileNav() {
     const navToggle = document.querySelector('.nav-toggle');
     const navMenu = document.querySelector('.nav-menu');
@@ -571,10 +631,10 @@ function initializeDemoFunctionality() {
                         Evidence and explanation
                     </h4>
                     <span class="reasoning-mode ${data.explanation_mode === 'gemini_grounded' ? 'reasoning-mode-ai' : 'reasoning-mode-fallback'}">
-                        ${data.explanation_mode === 'gemini_grounded' ? 'Gemini · grounded in retrieved sources' : 'Evidence-only fallback · no Gemini explanation'}
+                        ${data.explanation_mode === 'gemini_grounded' ? 'Gemini · grounded in retrieved sources' : (data.explanation_mode === 'evidence_reconciled' ? 'Evidence policy · verdict reconciled' : 'Evidence-only fallback · no Gemini explanation')}
                     </span>
-                    <div class="reasoning-copy" style="color: #334155; line-height: 1.7; font-size: 0.95rem; white-space: pre-line;">
-                        ${escapeHTML(String(data.explanation || 'No explanation was returned.').replace(/\\n/g, '\n'))}
+                    <div class="reasoning-copy" style="color: #334155; line-height: 1.7; font-size: 0.95rem;">
+                        ${renderExplanationMarkdown(data.explanation || 'No explanation was returned.')}
                     </div>
 
                     ${data.tips && data.tips.length > 0 ? `
@@ -583,7 +643,7 @@ function initializeDemoFunctionality() {
                                 <i class="fas fa-lightbulb" style="color: #f59e0b;"></i> Actionable Fact-Checking Tips:
                             </strong>
                             <ul style="margin: 0; padding-left: 1.25rem; color: #78350f; font-size: 0.85rem; line-height: 1.5;">
-                                ${data.tips.slice(0, 4).map(tip => `<li style="margin: 0.35rem 0;">${escapeHTML(tip)}</li>`).join('')}
+                                ${data.tips.slice(0, 4).map(tip => `<li style="margin: 0.35rem 0;">${escapeHTML(String(tip).replace(/&#x0*20;/gi, ' ').replace(/&#x0*a;/gi, ' '))}</li>`).join('')}
                             </ul>
                         </div>
                     ` : ''}
