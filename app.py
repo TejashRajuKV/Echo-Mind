@@ -26,7 +26,10 @@ API_KEY = os.environ.get("ECHO_MIND_API_KEY")
 
 # CORS – restrict to the deployed frontend origin plus localhost for dev.
 # Set ALLOWED_ORIGINS=https://your-domain.com in .env for production.
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080")
+_raw_origins = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8080,http://127.0.0.1:8080,https://tejashrajukv.github.io",
+)
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 MAX_REQUESTS_PER_HOUR = max(1, int(os.environ.get("MAX_REQUESTS_PER_HOUR", 100)))

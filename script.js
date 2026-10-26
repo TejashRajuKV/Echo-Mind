@@ -8,6 +8,20 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTypingEffect();
 });
 
+// Keep the public site pointed at the active Cloud Run service. The older
+// project-number URL was retired and now returns a Google Frontend 503.
+const ECHO_MIND_API_BASE = 'https://echo-mind-5act.onrender.com';
+
+// Anonymous, browser-local identity used to scope claim history without login.
+function getEchoMindSessionId() {
+    let sid = localStorage.getItem('echomind_session_id');
+    if (!sid) {
+        sid = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
+        localStorage.setItem('echomind_session_id', sid);
+    }
+    return sid;
+}
+
 function sanitizeHTML(markup) {
     const parsed = new DOMParser().parseFromString(String(markup), 'text/html');
     parsed.querySelectorAll('script, iframe, object, embed, form').forEach(node => node.remove());
@@ -111,15 +125,6 @@ function initializeDemoFunctionality() {
         return;
     }
 
-    function getSessionId() {
-        let sid = localStorage.getItem('echomind_session_id');
-        if (!sid) {
-            sid = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
-            localStorage.setItem('echomind_session_id', sid);
-        }
-        return sid;
-    }
-
     function isLocal() {
         const h = window.location.hostname;
         const proto = window.location.protocol;
@@ -128,7 +133,7 @@ function initializeDemoFunctionality() {
     }
 
     function getBaseUrl() {
-        return isLocal() ? 'http://localhost:8080' : 'https://echo-mind-191043917366.us-central1.run.app';
+        return isLocal() ? 'http://localhost:8080' : ECHO_MIND_API_BASE;
     }
 
     function getApiUrl() {
@@ -181,7 +186,7 @@ function initializeDemoFunctionality() {
         const status = document.getElementById('libraryStatus');
         try {
             const response = await fetch(`${getBaseUrl()}/history`, {
-                headers: { 'X-Session-ID': getSessionId() }
+                headers: { 'X-Session-ID': getEchoMindSessionId() }
             });
             if (!response.ok) throw new Error('History is unavailable');
             const data = await response.json();
@@ -556,10 +561,13 @@ function initializeDemoFunctionality() {
                 <div style="background: #ffffff; padding: 1.5rem; border-radius: 14px; border: 1px solid #e2e8f0;">
                     <h4 style="margin: 0 0 0.75rem 0; color: #1e293b; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-brain" style="color: #4f46e5;"></i>
-                        AI Grounded Reasoning & Explanation
+                        Evidence and explanation
                     </h4>
-                    <div style="color: #334155; line-height: 1.7; font-size: 0.95rem;">
-                        ${data.explanation}
+                    <span class="reasoning-mode ${data.explanation_mode === 'gemini_grounded' ? 'reasoning-mode-ai' : 'reasoning-mode-fallback'}">
+                        ${data.explanation_mode === 'gemini_grounded' ? 'Gemini · grounded in retrieved sources' : 'Evidence-only fallback · no Gemini explanation'}
+                    </span>
+                    <div class="reasoning-copy" style="color: #334155; line-height: 1.7; font-size: 0.95rem; white-space: pre-line;">
+                        ${escapeHTML(String(data.explanation || 'No explanation was returned.').replace(/\\n/g, '\n'))}
                     </div>
 
                     ${data.tips && data.tips.length > 0 ? `
@@ -568,7 +576,7 @@ function initializeDemoFunctionality() {
                                 <i class="fas fa-lightbulb" style="color: #f59e0b;"></i> Actionable Fact-Checking Tips:
                             </strong>
                             <ul style="margin: 0; padding-left: 1.25rem; color: #78350f; font-size: 0.85rem; line-height: 1.5;">
-                                ${data.tips.slice(0, 4).map(tip => `<li style="margin: 0.35rem 0;">${tip}</li>`).join('')}
+                                ${data.tips.slice(0, 4).map(tip => `<li style="margin: 0.35rem 0;">${escapeHTML(tip)}</li>`).join('')}
                             </ul>
                         </div>
                     ` : ''}
@@ -614,13 +622,12 @@ function initializeDemoFunctionality() {
                 <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <i class="fas fa-exclamation-circle"></i> Service Notice
                 </h3>
-                <p style="color: #7f1d1d; margin-bottom: 1rem;">Could not connect to the analysis engine. Please ensure the backend server is running.</p>
+                <p style="color: #7f1d1d; margin-bottom: 1rem;">${isLocal() ? 'Could not connect to the local analysis service.' : 'The hosted analysis service is currently unavailable. The public site depends on its Cloud Run backend; try again after the service is restored.'}</p>
                 <p style="font-family: monospace; background: #ffffff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; color: #991b1b; border: 1px solid #fecaca;">${errorMessage}</p>
                 <div style="margin-top: 1rem; padding: 1rem; background: #ffffff; border-radius: 8px; border: 1px solid #fecaca; font-size: 0.88rem; color: #7f1d1d;">
                     <strong>Next Steps:</strong>
                     <ol style="margin: 0.5rem 0 0 1.25rem; line-height: 1.6;">
-                        <li>If testing locally, run: <code>python app.py</code> (runs on port 8080)</li>
-                        <li>Check network connectivity or backend service health check at <code>/health</code></li>
+                        ${isLocal() ? '<li>Start the backend with <code>python app.py</code> and check <code>http://localhost:8080/health</code>.</li>' : '<li>Check the Cloud Run service and restore billing for project <code>echo-mind-472808</code>.</li>'}
                     </ol>
                 </div>
             </div>
@@ -655,7 +662,7 @@ function initializeDemoFunctionality() {
         
         try {
             const apiUrl = getApiUrl();
-            const sessionId = getSessionId();
+            const sessionId = getEchoMindSessionId();
             console.log('🚀 Sending claim to backend:', apiUrl, 'Session:', sessionId);
 
             const response = await fetch(apiUrl, {
@@ -926,7 +933,7 @@ function initializeDemoFunctionality() {
                     try {
                         const resp = await fetch(`${getBaseUrl()}/monitor/subscribe`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-Session-ID': getSessionId() },
+                            headers: { 'Content-Type': 'application/json', 'X-Session-ID': getEchoMindSessionId() },
                             body: JSON.stringify({
                                 claim: currentClaim,
                                 verdict: data.classification,
@@ -1487,8 +1494,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedId = null;
   const $ = id => document.getElementById(id);
   const status = message => { $('workspace-status').textContent = message; };
+  const localPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const apiBaseReady = (async () => {
+    if (!localPreview) return '';
+    try {
+      const probe = await fetch('/health', { cache: 'no-store' });
+      if (probe.status === 404) return ECHO_MIND_API_BASE;
+    } catch (_) { /* Keep same-origin routing; the visible status will explain connection failures. */ }
+    return '';
+  })();
+  const apiUrl = async path => (localPreview ? (await apiBaseReady) : ECHO_MIND_API_BASE) + path;
+  const showServiceError = error => {
+    $('workspace-list').textContent = 'Recent investigations are unavailable.';
+    status(error.message.includes('(404)')
+      ? 'Workspace API not found. Start the Flask app with “python app.py”.'
+      : 'Could not connect to the investigation service. Try again shortly.');
+  };
   const request = async (url, options = {}) => {
-    const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+    const response = await fetch(await apiUrl(url), { ...options, headers: { 'Content-Type': 'application/json', 'X-Session-ID': getEchoMindSessionId(), ...(options.headers || {}) } });
     const data = response.headers.get('content-type')?.includes('application/json') ? await response.json() : await response.text();
     if (!response.ok) throw new Error(data?.message || data?.error || 'Request failed (' + response.status + ')');
     return data;
@@ -1506,10 +1529,10 @@ document.addEventListener('DOMContentLoaded', () => {
     data.investigations.forEach(item => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.style.cssText = 'display:block;width:100%;text-align:left;margin:.35rem 0;padding:.65rem;overflow-wrap:anywhere';
       button.textContent = (item.verdict || 'Not yet verified') + ' — ' + item.claim;
       button.addEventListener('click', async () => {
         selectedId = item.id;
+        $('workspace-claim').value = item.claim;
         $('workspace-selected').textContent = 'Selected: ' + item.claim;
         $('workspace-save-sources').disabled = false;
         try { await loadGraph(); status('Investigation loaded. Add source links to build provenance.'); }
@@ -1529,9 +1552,50 @@ document.addEventListener('DOMContentLoaded', () => {
       status('Investigation created. It is not verified until evidence is checked.');
       await loadInvestigations();
       await loadGraph();
-    } catch (e) { status(e.message); }
+    } catch (e) {
+      showServiceError(e);
+    }
   });
-  $('workspace-refresh').addEventListener('click', () => loadInvestigations().catch(e => status(e.message)));
+  $('workspace-refresh').addEventListener('click', () => loadInvestigations().catch(showServiceError));
+  $('workspace-compare').addEventListener('click', async () => {
+    const claimA = $('workspace-claim').value.trim();
+    const claimB = $('workspace-compare-claim').value.trim();
+    const button = $('workspace-compare');
+    const results = $('workspace-compare-results');
+    if (!claimA || !claimB) { results.textContent = 'Enter both claim versions to compare.'; return; }
+
+    button.disabled = true;
+    results.textContent = 'Comparing wording…';
+    try {
+      const comparison = await request('/claim-family/compare', {
+        method: 'POST',
+        body: JSON.stringify({ claim_a: claimA, claim_b: claimB })
+      });
+      const card = document.createElement('div');
+      card.className = 'claim-compare-result';
+      const heading = document.createElement('strong');
+      heading.textContent = (comparison.candidate_family ? 'Likely related wording' : 'No strong wording match') +
+        ' · ' + Math.round((comparison.similarity || 0) * 100) + '% overlap';
+      const note = document.createElement('p');
+      note.textContent = comparison.material_change
+        ? 'A number, date, or negation changed. Recheck this version before relying on the earlier result.'
+        : comparison.must_reverify
+          ? 'The wording changed enough that this version should be checked separately.'
+          : 'No material number, date, or negation change was detected.';
+      card.append(heading, note);
+      const tokens = comparison.shared_tokens || [];
+      if (tokens.length) {
+        const shared = document.createElement('small');
+        shared.textContent = 'Shared terms: ' + tokens.join(', ');
+        card.append(shared);
+      }
+      results.replaceChildren(card);
+    } catch (error) {
+      results.textContent = error.message || 'Could not compare these claims.';
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('workspace-save-sources').addEventListener('click', async () => {
     if (!selectedId) return;
     let sources;
@@ -1549,7 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) { $('workspace-ocr-status').textContent = 'Choose an image first.'; return; }
     const form = new FormData(); form.append('image', file);
     try {
-      const response = await fetch('/message/ocr', { method: 'POST', body: form });
+      const response = await fetch(await apiUrl('/message/ocr'), { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'OCR failed');
       $('workspace-claim').value = data.text || '';
@@ -1565,5 +1629,5 @@ document.addEventListener('DOMContentLoaded', () => {
       status(data.note || 'Related claim lookup complete.');
     } catch (e) { status(e.message); }
   });
-  loadInvestigations().catch(e => status(e.message));
+  loadInvestigations().catch(showServiceError);
 });

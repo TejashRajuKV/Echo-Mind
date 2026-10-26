@@ -33,6 +33,7 @@ The system can use Google Vertex AI (Gemini) when configured and has fallback pa
 | **Echo-Chamber Deduplication** | Clusters syndicated wire reprints (PTI, AP, Reuters, ANI) and counts them as one source to prevent artificial consensus inflation. |
 | **Explainable Credibility Scoring** | Multi-factor formula: Source Convergence + Domain Authority + Publisher Diversity. Shown as a transparent breakdown, not a black-box number. |
 | **Evidence Trail Explorer** | Search publishers and headlines, filter sources by stance, sort by authority, and export citations to CSV from each analysis. |
+| **Claim Version Comparison** | Compare alternate wording, show token overlap, and flag changed numbers, dates, or negations so materially changed claims get checked again. Similarity is only a navigation hint, never evidence. |
 | **Gamified Critical Thinking** | Points, badges, and personalised tips per category. State is isolated per anonymous session -- not shared across users. |
 
 ### Intelligence Extensions
@@ -207,12 +208,15 @@ GOOGLE_FACT_CHECK_API_KEY=your_key_here
 # Required for live news retrieval
 FREE_NEWS_API_KEY=your_key_here
 
-# Required for Vertex AI / Gemini (leave blank to use deterministic fallback)
+# Gemini Developer API key (preferred). If blank, the app tries Vertex AI credentials.
+GEMINI_API_KEY=your_gemini_api_key_here
+# Vertex AI fallback configuration
 PROJECT_ID=your-gcp-project-id
 LOCATION=asia-south1
+GEMINI_MODEL=gemini-3.5-flash
 
 # Security
-ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080,https://tejashrajukv.github.io
 ECHO_MIND_API_KEY=your-admin-key
 
 # Flask -- set to false in production

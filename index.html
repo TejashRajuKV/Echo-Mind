@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo Mind — The Open Evidence Project</title>
-    <link rel="stylesheet" href="styles.css?v=20261026-followup">
+    <link rel="stylesheet" href="styles.css?v=20261026-api-recovery">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Backup Font Awesome CDN -->
@@ -308,45 +308,75 @@
         </div>
     </section>
 
+    <section id="investigation-workspace" class="investigation-workspace">
+      <div class="container workspace-container">
+        <div class="workspace-hero">
+          <div class="workspace-hero-copy">
+            <span class="workspace-kicker">THE EVIDENCE DESK&nbsp; / &nbsp;01</span>
+            <h2>Look closer.<br><em>Know more.</em></h2>
+            <p>Keep a claim, its sources, and the story behind it in one place.</p>
+            <a class="workspace-jump" href="#workspace-create">Start an investigation <span aria-hidden="true">↘</span></a>
+          </div>
+          <figure class="workspace-hero-art">
+            <img src="assets/echo-evidence-collage.webp" alt="Hand-drawn collage of evidence notes linked by orange lines">
+            <figcaption>FOLLOW THE THREAD</figcaption>
+          </figure>
+          <span class="workspace-hero-index" aria-hidden="true">EM<br>01</span>
+        </div>
+        <div class="workspace-heading">
+          <span class="workspace-kicker">TOOLS FOR THE CURIOUS</span>
+          <h3>Your investigation, in pieces.</h3>
+          <p>Similarity and translation help you navigate. Evidence is what verifies a claim.</p>
+        </div>
+        <div class="workspace-grid">
+          <article class="workspace-card workspace-card-main">
+            <div class="workspace-card-top"><span class="workspace-card-number">01</span><span class="workspace-card-label">CLAIM FILE</span></div>
+            <h3>Start an investigation</h3>
+            <label class="workspace-sr-only" for="workspace-claim">Claim to investigate</label>
+            <textarea id="workspace-claim" rows="4" maxlength="2000" placeholder="Paste a claim to investigate"></textarea>
+            <div class="workspace-actions">
+              <button id="workspace-create" class="workspace-button" type="button">Create file <span aria-hidden="true">↗</span></button>
+              <button id="workspace-refresh" class="workspace-text-button" type="button">Refresh history</button>
+            </div>
+            <div class="claim-compare-tool">
+              <div><span class="workspace-mini-kicker">WORDING CHECK</span><h4>Compare versions</h4></div>
+              <label class="workspace-sr-only" for="workspace-compare-claim">Another version of the claim</label>
+              <textarea id="workspace-compare-claim" rows="2" maxlength="2000" placeholder="Paste another version"></textarea>
+              <button id="workspace-compare" class="workspace-button workspace-button-light" type="button">Compare <span aria-hidden="true">↗</span></button>
+              <div id="workspace-compare-results" aria-live="polite"></div>
+              <small>Similarity is a hint, never evidence. Changes to numbers, dates, or negation matter.</small>
+            </div>
+            <div class="workspace-history"><h4>Recent files</h4><div id="workspace-list" aria-live="polite">Loading…</div></div>
+          </article>
+          <article class="workspace-card workspace-card-ocr">
+            <div class="workspace-card-top"><span class="workspace-card-number">02</span><span class="workspace-card-label">IMAGE → TEXT</span></div>
+            <h3>Read a screenshot</h3>
+            <p class="workspace-card-intro">Pull a claim from a post or document.</p>
+            <label class="workspace-upload" for="workspace-image"><span class="workspace-upload-icon" aria-hidden="true">＋</span><span>Choose an image<small>PNG, JPG, WEBP or TIFF</small></span></label>
+            <input id="workspace-image" class="workspace-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/tiff">
+            <button id="workspace-ocr" class="workspace-button" type="button">Extract text <span aria-hidden="true">↗</span></button>
+            <p id="workspace-ocr-status" class="workspace-inline-status" aria-live="polite"></p>
+            <div class="workspace-language"><span class="workspace-mini-kicker">ACROSS LANGUAGES</span><h4>Find related claims</h4><button id="workspace-language-match" class="workspace-text-button" type="button">Search other wording ↗</button><pre id="workspace-match-results"></pre></div>
+          </article>
+          <article class="workspace-card workspace-card-sources">
+            <div class="workspace-card-top"><span class="workspace-card-number">03</span><span class="workspace-card-label">SOURCE TRAIL</span></div>
+            <h3>Map the evidence</h3>
+            <p id="workspace-selected" class="workspace-card-intro">Choose a claim file to connect its sources.</p>
+            <label class="workspace-sr-only" for="workspace-sources">Source list in JSON format</label>
+            <textarea id="workspace-sources" rows="5" placeholder='[ { "title": "Official notice", "url": "https://…", "stance": "supports" } ]'></textarea>
+            <button id="workspace-save-sources" class="workspace-button workspace-button-dark" type="button" disabled>Build source map <span aria-hidden="true">↗</span></button>
+            <pre id="workspace-graph"></pre>
+          </article>
+        </div>
+        <p id="workspace-status" class="workspace-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <!-- Project Info Section -->
     <section id="contact" class="contact">
         <div class="container">
             <div class="closing-note"><span>KEEP ASKING.</span><span>KEEP LOOKING.</span><a href="#demo">Check a claim ↗</a></div>
         </div>
-    </section>
-
-
-    <section id="investigation-workspace" style="padding:4rem 0;background:#f8fafc;color:#0f172a">
-      <div class="container" style="max-width:1100px;margin:auto;padding:0 1rem">
-        <h2>Investigation Workspace</h2>
-        <p>Keep related claims together, inspect source provenance, and review extracted text before checking it. Similarity and translation are navigation hints, not evidence.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">
-          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
-            <h3>Start an investigation</h3>
-            <textarea id="workspace-claim" rows="4" maxlength="2000" style="width:100%;box-sizing:border-box;padding:.75rem" placeholder="Paste a claim to investigate"></textarea>
-            <button id="workspace-create" type="button">Create investigation</button>
-            <button id="workspace-refresh" type="button">Refresh history</button>
-            <h4>Recent investigations</h4><div id="workspace-list" aria-live="polite">Loading…</div>
-          </div>
-          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
-            <h3>Screenshot OCR</h3>
-            <input id="workspace-image" type="file" accept="image/png,image/jpeg,image/webp,image/tiff">
-            <button id="workspace-ocr" type="button">Extract text</button>
-            <p id="workspace-ocr-status" aria-live="polite"></p>
-            <h3>Cross-language lookup</h3>
-            <button id="workspace-language-match" type="button">Find related claims</button>
-            <pre id="workspace-match-results" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
-          </div>
-          <div style="background:white;border:1px solid #dbe3ee;border-radius:14px;padding:1rem">
-            <h3>Evidence provenance</h3>
-            <p id="workspace-selected">Select an investigation to inspect its graph.</p>
-            <textarea id="workspace-sources" rows="5" style="width:100%;box-sizing:border-box;padding:.75rem" placeholder='Paste a JSON array of sources: [{"title":"Official notice","url":"https://example.gov/notice","stance":"supports"}]'></textarea>
-            <button id="workspace-save-sources" type="button" disabled>Build source graph</button>
-            <pre id="workspace-graph" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
-          </div>
-        </div>
-        <p id="workspace-status" role="status" aria-live="polite"></p>
-      </div>
     </section>
 
     <!-- Footer -->
@@ -362,6 +392,6 @@
         </div>
     </footer>
 
-    <script src="script.js?v=20261026-followup"></script>
+    <script src="script.js?v=20261026-render-api"></script>
 </body>
 </html>
