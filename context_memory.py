@@ -18,7 +18,9 @@ from typing import Any
 DB_PATH = Path(__file__).parent / "context_memory.db"
 DEFAULT_TTL_SECONDS = 6 * 60 * 60
 LIVE_TTL_SECONDS = 15 * 60
-CACHE_RESULT_SCHEMA_VERSION = 2
+# Bump when evidence routing/relevance rules change so old mixed-provider
+# analyses are not replayed as if they came from the current pipeline.
+CACHE_RESULT_SCHEMA_VERSION = 3
 MAX_CLAIM_CHARS = 2000
 STOP_WORDS = {
     "the", "and", "for", "with", "from", "that", "this", "was", "were", "are",

@@ -454,7 +454,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     4. Ranks by Domain Authority + Stance Relevance
     5. Computes source distribution statistics
     """
-    from api_decision_engine import build_api_decision, finalize_api_decision, is_relevant_officeholder_article
+    from api_decision_engine import build_api_decision, finalize_api_decision, is_relevant_news_article
     from publisher_identity import publisher_identity
 
     raw_sources: List[Dict[str, Any]] = []
@@ -488,7 +488,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     news_query = decision.get("live_news_query") or claim
     news_sources = query_live_news_sources(news_query, max_results=8) if news_checked else []
     if news_sources:
-        news_sources = [source for source in news_sources if is_relevant_officeholder_article(claim, source)][:4]
+        news_sources = [source for source in news_sources if is_relevant_news_article(claim, source)][:4]
     raw_sources.extend(news_sources)
     decision = finalize_api_decision(
         decision,

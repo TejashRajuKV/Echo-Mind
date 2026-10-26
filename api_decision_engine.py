@@ -72,6 +72,37 @@ def is_relevant_officeholder_article(query: str, article: dict) -> bool:
     return has_office and ("india" in text or "indian" in text)
 
 
+NEWS_STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "claim",
+    "for", "from", "has", "have", "he", "her", "his", "in", "is", "it", "its",
+    "of", "on", "or", "our", "says", "she", "that", "the", "their", "they",
+    "this", "to", "was", "were", "what", "when", "which", "who", "will", "with",
+    "would", "present", "current", "currently", "today", "latest", "news",
+}
+
+
+def is_relevant_news_article(claim: str, article: dict) -> bool:
+    """Reject keyword-search noise before live articles enter the evidence trail."""
+    if officeholder_search_query(claim):
+        return is_relevant_officeholder_article(claim, article)
+
+    article_text = " ".join(
+        str(article.get(field) or "")
+        for field in ("title", "excerpt", "description", "snippet")
+    ).casefold()
+    terms = lambda value: {
+        token for token in re.findall(r"[a-z0-9]+", value.casefold())
+        if len(token) > 1 and token not in NEWS_STOP_WORDS
+    }
+    claim_terms = terms(claim)
+    if not claim_terms:
+        return True
+    article_terms = terms(article_text)
+    overlap = len(claim_terms & article_terms)
+    required = 1 if len(claim_terms) == 1 else 2
+    return overlap >= required
+
+
 def _has_key(*names: str) -> bool:
     return any(os.environ.get(name, "").strip() for name in names)
 
