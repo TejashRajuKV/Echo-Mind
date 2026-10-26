@@ -37,6 +37,8 @@ def test_officeholder_claim_routes_to_focused_live_news_search():
     assert decision['time_sensitive'] is True
     assert officeholder_search_query('present cm of karnataka is pm modi') == 'karnataka current chief minister'
     assert decision['live_news_query'] == 'karnataka current chief minister'
+    implicit_current = build_api_decision('CM of Karnataka is X')
+    assert implicit_current['time_sensitive'] is True
 
 
 def test_officeholder_search_discards_unrelated_live_articles(monkeypatch):

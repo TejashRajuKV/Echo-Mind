@@ -102,6 +102,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
     language = _detect_language(claim)
     time_sensitive = (
         topic in {"sports", "weather"}
+        or officeholder_search_query(claim) is not None
         or any(term in normalized for term in FRESHNESS_TERMS)
         or bool(re.search(r"\b20\d{2}\b", normalized))
     )
