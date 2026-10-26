@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo Mind — The Open Evidence Project</title>
-    <link rel="stylesheet" href="styles.css?v=20261026-result-tools">
+    <link rel="stylesheet" href="styles.css?v=20261026-demo-cleanup">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Backup Font Awesome CDN -->
@@ -26,7 +26,6 @@
                 <li><a href="#features">Features</a></li>
                 <li><a href="#demo">Demo</a></li>
                 <li><a href="#about">About</a></li>
-                <li><a href="#team">Team</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
             <div class="nav-toggle">
@@ -197,7 +196,8 @@
                 <div class="demo-input">
                     <textarea
                         id="claimInput"
-                        placeholder="Enter a claim, statement, or headline to fact-check… English or Indian languages (Kannada, Hindi, Tamil, Telugu, Bengali) are all supported."
+                        placeholder="Paste a claim or headline to check…"
+                        aria-label="Claim or headline to fact-check"
                         rows="4"
                     ></textarea>
                     <button id="checkClaim" class="btn btn-primary">
@@ -258,53 +258,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- Team Section -->
-    <section id="team" class="team">
-        <div class="container">
-            <div class="section-eyebrow">THE PEOPLE BEHIND THE PROJECT</div>
-            <h2 class="section-title">Small team.<br><em>Big questions.</em></h2>
-            
-            <div class="team-grid">
-                <div class="team-card">
-                    <div class="team-info">
-                        <h3>Product</h3>
-                        <p class="team-role">Full-Stack Development</p>
-                        <p class="team-description">Building the product from interface to evidence pipeline.</p>
-                        <div class="team-skills">
-                            <span class="skill-tag">Product</span>
-                            <span class="skill-tag">Engineering</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="team-card">
-                    <div class="team-info">
-                        <h3>Design</h3>
-                        <p class="team-role">Frontend &amp; UX</p>
-                        <p class="team-description">Designing clear, welcoming ways to explore the evidence.</p>
-                        <div class="team-skills">
-                            <span class="skill-tag">Design</span>
-                            <span class="skill-tag">Frontend</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="team-card">
-                    <div class="team-info">
-                        <h3>Research</h3>
-                        <p class="team-role">AI &amp; Backend</p>
-                        <p class="team-description">Connecting the analysis engine to credible sources.</p>
-                        <div class="team-skills">
-                            <span class="skill-tag">AI</span>
-                            <span class="skill-tag">Backend</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
         </div>
     </section>
 
@@ -392,6 +345,6 @@
         </div>
     </footer>
 
-    <script src="script.js?v=20261026-result-tools"></script>
+    <script src="script.js?v=20261026-demo-cleanup"></script>
 </body>
 </html>

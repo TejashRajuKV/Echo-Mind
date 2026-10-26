@@ -1199,7 +1199,7 @@ function initializeScrollAnimations() {
         });
     }, observerOptions);
 
-    const animateElements = document.querySelectorAll('.feature-card, .stat-card, .contact-item, .team-card, .mission-card');
+    const animateElements = document.querySelectorAll('.feature-card, .stat-card, .contact-item, .mission-card');
     animateElements.forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(30px)';

@@ -1923,7 +1923,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .demo-example-chip:hover { background: var(--blue); border-color: var(--blue); color: white; }
 .demo-container { display: grid; grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr); align-items: start; gap: 20px; }
 .demo-input, .demo-output { border: 1px solid #d6d9e2; border-radius: 0; background: var(--paper-light); padding: 22px; box-shadow: 5px 6px 0 rgba(32,35,31,.08); }
-.demo-input textarea { min-height: 190px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 500 1.15rem/1.6 var(--display); resize: vertical; }
+.demo-input textarea { display: block; width: 100%; min-height: 150px; max-height: 320px; box-sizing: border-box; padding: 8px 4px 14px; overflow-y: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 500 1.15rem/1.6 var(--display); resize: vertical; }
 .demo-input textarea:focus { outline: none; box-shadow: none; border-bottom-color: var(--blue); }
 .demo-input .btn { margin-top: 16px; }
 .demo-output { min-height: 275px; }
@@ -1934,13 +1934,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .verdict-hero, .consensus-panel, .source-card, .credibility-formula-card { border-radius: 0 !important; box-shadow: none !important; }
 .action-btn { border-radius: 2px !important; }
 
-.about, .team, .contact { padding: 95px 0; background: var(--paper); }
-.about .section-title, .team .section-title, .contact .section-title { text-align: left; }
-.team { background: var(--paper-light); }
-.team-card, .mission-card, .stat-card, .tech-stack, .contact-item { border: 1px solid var(--line); border-radius: 0; background: #fffdf8; box-shadow: none; }
-.team-card:hover, .stat-card:hover { transform: translateY(-3px); box-shadow: 4px 5px 0 rgba(49,95,199,.14); }
-.team-card h3, .contact-item h3, .tech-stack h3, .mission-card h3 { font-family: var(--display); }
-.team-role, .skill-tag { color: var(--blue); }
+.about, .contact { padding: 95px 0; background: var(--paper); }
+.about .section-title, .contact .section-title { text-align: left; }
+.mission-card, .stat-card, .tech-stack, .contact-item { border: 1px solid var(--line); border-radius: 0; background: #fffdf8; box-shadow: none; }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 4px 5px 0 rgba(49,95,199,.14); }
+.contact-item h3, .tech-stack h3, .mission-card h3 { font-family: var(--display); }
 .skill-tag { border-radius: 0; background: var(--soft-blue); }
 .contact { background: #e9edf5; }
 .footer { background: var(--ink); }
@@ -1974,7 +1972,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
     .paper-back { left: 8%; }
     .slip-one { right: -4%; top: 213px; }
     .slip-two { right: -2%; top: 286px; }
-    .features, .about, .team, .contact { padding: 72px 0; }
+    .features, .about, .contact { padding: 72px 0; }
     .section-title { font-size: 2.8rem; }
     .section-subtitle { margin-bottom: 2.3rem; font-size: .92rem; }
     .features-grid, .features-grid-ext { grid-template-columns: 1fr; gap: 12px; }
@@ -2046,7 +2044,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .feature-card p { font-size: .79rem; line-height: 1.5; }
 .feature-card:nth-child(odd)::after { content: ''; position: absolute; width: 42px; height: 42px; right: 17px; top: 17px; border: 1px solid rgba(223,105,69,.28); border-radius: 50%; pointer-events: none; }
 .feature-card:nth-child(3n + 2)::after { border-radius: 0; transform: rotate(18deg); border-color: rgba(49,95,199,.24); }
-.about .section-title, .team .section-title { margin-bottom: 2.3rem; }
+.about .section-title { margin-bottom: 2.3rem; }
 .about-content { align-items: center; }
 .tech-stack { padding: 22px 24px; }
 .tech-stack h3 { font-size: 1.3rem; margin-bottom: .8rem; }
@@ -2055,21 +2053,6 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); }
 .method-sequence { display: flex; justify-content: center; align-items: center; gap: 13px; padding: 15px 5px; color: var(--coral); font: 500 2.6rem var(--display); }
 .method-sequence i { width: clamp(24px, 4vw, 64px); height: 1px; background: var(--line); }
 .stat-label b { color: var(--coral); padding: 0 5px; }
-.team-grid { gap: 15px; }
-.team-card { min-height: 240px; position: relative; overflow: hidden; }
-.team-card::before { content: ''; position: absolute; top: 0; right: 0; width: 76px; height: 76px; border-radius: 0 0 0 100%; background: #f7e5dc; }
-.team-card:nth-child(2)::before { background: var(--soft-blue); }
-.team-card:nth-child(3)::before { background: #ece6d7; }
-.team-card::after { position: absolute; top: 13px; right: 15px; color: var(--coral); font: italic 600 1.7rem var(--display); }
-.team-card:nth-child(1)::after { content: '01'; }
-.team-card:nth-child(2)::after { content: '02'; color: var(--blue); }
-.team-card:nth-child(3)::after { content: '03'; color: #79745e; }
-.team-card h3 { position: relative; z-index: 1; font-size: 1.55rem; }
-.team-role { margin: .45rem 0 .8rem; font: 500 .63rem var(--mono); text-transform: uppercase; letter-spacing: .06em; }
-.team-description { max-width: 28ch; color: var(--muted-ink); font-size: .86rem; line-height: 1.55; }
-.team-skills { gap: 6px; margin-top: 1rem; }
-.skill-tag { font-size: .63rem; padding: .28rem .48rem; }
-.team-mission { display: none; }
 .contact { padding-block: 40px; background: var(--ink); color: var(--paper-light); }
 .closing-note { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .closing-note span { font: 600 clamp(1.4rem, 3.4vw, 3rem) var(--display); letter-spacing: -.04em; }
