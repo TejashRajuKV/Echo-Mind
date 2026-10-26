@@ -79,6 +79,8 @@ On Windows PowerShell, activate the environment with .venv\Scripts\Activate.ps1.
 
 The Gemini key stays on the backend and must never be placed in browser JavaScript or a public GitHub Pages variable. API providers have their own quotas and terms. ECHO_MIND_API_KEY protects administrative requests and remains a legacy Gemini-key fallback for older deployments; set GEMINI_API_KEY separately so the two secrets are not confused.
 
+Google Fact Check Tools uses its own configured key (`GOOGLE_FACT_CHECK_API_KEY`) from a Google Cloud project with the Fact Check Tools API enabled. A Gemini Developer API key is not a substitute. In the result's “Why these sources?” panel, `no matches` means Google accepted the request but found no published reviews; `error` means the request failed and should not be interpreted as zero matches.
+
 ## Deploying
 
 ### GitHub Pages frontend

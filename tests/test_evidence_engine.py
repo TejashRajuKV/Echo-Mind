@@ -69,3 +69,37 @@ def test_publisher_aliases_and_article_title_hashes_do_not_fake_independence():
         {'domain': 'timesofindia.indiatimes.com', 'publisher': 'The Times of India', 'cluster_id': 'titlehash2'},
     ]
     assert len({publisher_identity(source) for source in sources}) == 1
+
+
+def test_gemini_key_alone_does_not_enable_fact_check_tools(monkeypatch):
+    monkeypatch.delenv('GOOGLE_FACT_CHECK_API_KEY', raising=False)
+    monkeypatch.delenv('GOOGLE_API_KEY', raising=False)
+    monkeypatch.setenv('GEMINI_API_KEY', 'gemini-only-test-key')
+    assert build_api_decision('A claim')['routes']['google_fact_check']['configured'] is False
+
+
+def test_factcheck_reports_api_error_separately_from_no_matches(monkeypatch):
+    from evidence_engine import query_google_fact_check
+
+    class Response:
+        status_code = 400
+        def json(self):
+            return {'error': {'status': 'INVALID_ARGUMENT', 'message': 'API Key not found.'}}
+
+    monkeypatch.setenv('GOOGLE_FACT_CHECK_API_KEY', 'test-key')
+    monkeypatch.setattr('evidence_engine.requests.get', lambda *args, **kwargs: Response())
+    status = {}
+    assert query_google_fact_check('example claim', status_out=status) == []
+    assert status['status'] == 'error'
+    assert status['http_status'] == 400
+    assert status['error'] == 'API Key not found.'
+
+    class EmptySuccess(Response):
+        status_code = 200
+        def json(self):
+            return {'claims': []}
+
+    monkeypatch.setattr('evidence_engine.requests.get', lambda *args, **kwargs: EmptySuccess())
+    status = {}
+    assert query_google_fact_check('example claim', status_out=status) == []
+    assert status['status'] == 'no_matches'

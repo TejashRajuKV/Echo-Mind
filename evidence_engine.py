@@ -204,13 +204,18 @@ def detect_evidence_stance(claim: str, title: str, text: str, rating: str = "") 
 # ---------------------------------------------------------------------------
 # Source Connector 1: Google Fact Check Tools API
 # ---------------------------------------------------------------------------
-def query_google_fact_check(query: str, max_results: int = 5, language_code: str = "en") -> List[Dict[str, Any]]:
+def query_google_fact_check(
+    query: str, max_results: int = 5, language_code: str = "en",
+    status_out: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     """
     Query Google's Fact Check Tools API for certified reviews.
     Endpoint: https://factchecktools.googleapis.com/v1alpha1/claims:search
     """
-    api_key = os.environ.get("GOOGLE_FACT_CHECK_API_KEY") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    api_key = os.environ.get("GOOGLE_FACT_CHECK_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
+        if status_out is not None:
+            status_out.update({"status": "not_configured", "error": "No Google Fact Check API key is configured."})
         return []
 
     url = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
@@ -261,8 +266,32 @@ def query_google_fact_check(query: str, max_results: int = 5, language_code: str
                         "cluster_id": synd["cluster_id"],
                         "wire_agency": synd["wire_agency"],
                     })
-    except Exception as e:
-        print(f"[WARN] Google Fact Check API query failed: {e}")
+            if status_out is not None:
+                status_out.update({
+                    "status": "matches" if results else "no_matches",
+                    "http_status": 200,
+                    "error": None,
+                })
+        else:
+            try:
+                error_data = resp.json().get("error", {})
+            except Exception:
+                error_data = {}
+            message = str(error_data.get("message") or "Google Fact Check API rejected the request.")[:180]
+            error_code = error_data.get("status") or error_data.get("code")
+            if status_out is not None:
+                status_out.update({
+                    "status": "error",
+                    "http_status": resp.status_code,
+                    "error_code": error_code,
+                    "error": message,
+                })
+            print(f"[WARN] Google Fact Check API returned HTTP {resp.status_code} ({error_code or 'unknown error'}).")
+    except Exception as exc:
+        if status_out is not None:
+            status_out.update({"status": "error", "error": f"Google Fact Check request failed ({type(exc).__name__})."})
+        # Do not print exception text because request URLs can contain API keys.
+        print(f"[WARN] Google Fact Check API request failed ({type(exc).__name__}).")
 
     return results
 
@@ -531,9 +560,13 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
 
     # Verified claim reviews and local archive are the low-latency first pass.
     g_route = decision["routes"]["google_fact_check"]
+    google_status: Dict[str, Any] = {}
     g_sources = query_google_fact_check(
-        claim, max_results=4, language_code=decision.get("language_code", "en")
+        claim, max_results=4, language_code=decision.get("language_code", "en"),
+        status_out=google_status,
     ) if g_route["used"] else []
+    if not g_route["used"]:
+        google_status = {"status": "not_configured"}
     raw_sources.extend(g_sources)
 
     # The local archive is always queried as it has no external API cost.
@@ -575,6 +608,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         google_results=len(g_sources),
         local_results=len(db_sources),
         direct_source_count=direct_source_count,
+        google_status=google_status,
     )
 
     # --- Deduplication and Cluster Analysis ---
