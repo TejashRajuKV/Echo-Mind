@@ -27,10 +27,12 @@ The system can use Google Vertex AI (Gemini) when configured and has fallback pa
 | Feature | Description |
 |---|---|
 | **Evidence Intelligence Engine** | Queries Google Fact Check Tools API, FreeNewsAPI, and a local authoritative database *before* asking the AI. Every source gets a domain-authority tier score (0-100). |
+| **Adaptive API Decision Engine** | Routes claim reviews, local archive, live news, and cached real-time context based on claim topic, language, freshness, evidence coverage, and configured API keys. Each result explains which connectors ran and why. |
 | **Multi-Source Conflict Detection** | Decomposes every claim into atomic sub-claims and checks each independently across publishers. Detects consensus vs. active contradiction. |
 | **Atomic Claim Decomposition** | Splits compound statements into individually verifiable factual assertions for granular accuracy. |
 | **Echo-Chamber Deduplication** | Clusters syndicated wire reprints (PTI, AP, Reuters, ANI) and counts them as one source to prevent artificial consensus inflation. |
 | **Explainable Credibility Scoring** | Multi-factor formula: Source Convergence + Domain Authority + Publisher Diversity. Shown as a transparent breakdown, not a black-box number. |
+| **Evidence Trail Explorer** | Search publishers and headlines, filter sources by stance, sort by authority, and export citations to CSV from each analysis. |
 | **Gamified Critical Thinking** | Points, badges, and personalised tips per category. State is isolated per anonymous session -- not shared across users. |
 
 ### Intelligence Extensions
@@ -42,6 +44,7 @@ The system can use Google Vertex AI (Gemini) when configured and has fallback pa
 | **Research Document Analysis** | Paste any official notice, circular, research paper, or court order. The engine chunks paragraphs, extracts factual claims, and traces each to an estimated page and exact passage. |
 | **Opt-In Claim Monitoring** | Store subscriptions and in-app alerts in SQLite. A separate worker must be running for scheduled checks; email delivery also requires SMTP configuration. |
 | **Shareable Evidence Reports** | Generates a standalone HTML evidence report with full citations, verification date, methodology, and limitations. Includes Google **ClaimReview** Schema.org JSON-LD structured data for search engine eligibility. |
+| **Evidence Follow-up Q&A** | Ask a question about an analysis; Gemini via Vertex AI answers from that check's citations, with a cautious evidence-only fallback when unavailable. |
 | **Quality & Transparency Dashboard** | Real-time telemetry: citation coverage %, retrieval success %, unresolved conflict %, average latency, benchmark accuracy, and open human correction queue. |
 
 ---
@@ -91,6 +94,7 @@ All endpoints are served by `app.py` on port `8080`.
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `POST` | `/analyze` | Session | AI fact-checking with full evidence pipeline |
+| `POST` | `/followup` | Rate-limited | Answer a follow-up using a completed check's evidence |
 | `GET` | `/evolution` | -- | Claim mutation timeline and verdict drift |
 | `POST` | `/document/analyze` | -- | Research document chunking and passage citation |
 | `POST` | `/monitor/subscribe` | Session | Opt-in alert subscription |
@@ -126,6 +130,7 @@ Echo Mind/
 +-- context_memory.py           # Privacy-aware investigation memory + source-backed evidence cache
 |
 +-- evidence_engine.py          # Google Fact Check API + FreeNewsAPI + DB connector
++-- api_decision_engine.py      # Claim-aware retrieval routing and connector rationale
 +-- verification_engine.py      # Atomic sub-claim decomposition + consensus scoring
 +-- claim_evolution.py          # Claim mutation tracker (SQLite)
 +-- indian_language_engine.py   # Kannada/Hindi/Tamil/Telugu/Bengali support
@@ -207,9 +212,8 @@ PROJECT_ID=your-gcp-project-id
 LOCATION=asia-south1
 
 # Security
-SECRET_KEY=generate-a-random-string-here
-ALLOWED_ORIGINS=http://localhost:8080
-INTERNAL_API_KEY=your-admin-key
+ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+ECHO_MIND_API_KEY=your-admin-key
 
 # Flask -- set to false in production
 FLASK_DEBUG=false
@@ -232,8 +236,7 @@ Server starts on **http://localhost:8080**.
 **Option A -- via Flask (recommended):**
 Open `http://localhost:8080` in your browser.
 
-**Option B -- direct file (also works):**
-Open `index.html` directly from disk (`file:///...`). The frontend automatically detects `file://` protocol and routes all API calls to `localhost:8080`.
+The Flask server serves the frontend at `/` and its local CSS, JavaScript, and logo assets. Use it as the supported local entry point so browser requests share the backend origin. Direct `file://` use is blocked by browser origin restrictions.
 
 ---
 
@@ -375,6 +378,7 @@ gcloud run deploy echo-mind --image gcr.io/YOUR_PROJECT_ID/echo-mind \
 ```
 
 Set environment variables via Cloud Run's secret manager or environment variable configuration -- do **not** bundle `.env` into the container image.
+Set `ECHO_MIND_API_KEY` for the protected `/stats` endpoint. If the frontend is hosted on a separate domain, add that exact origin to `ALLOWED_ORIGINS`; same-origin Cloud Run hosting needs no additional CORS origin.
 
 ---
 
@@ -409,7 +413,6 @@ Set environment variables via Cloud Run's secret manager or environment variable
 - [x] **Quality & Transparency Dashboard** -- real-time telemetry, latency, and human correction queue
 - [x] **Security hardening** -- restrictive CORS, env-var keys, session isolation, separate analysis log table
 - [x] **Windows CP1252 compatibility** -- all print statements use ASCII markers; no raw emoji in console output
-- [x] **file:// protocol support** -- frontend auto-detects protocol and routes API calls to correct base URL
 
 ---
 
@@ -417,9 +420,9 @@ Set environment variables via Cloud Run's secret manager or environment variable
 
 | Name | Role |
 |---|---|
-| **Tejash Raju K V** | Team Leader & Full-Stack Developer |
-| **Amrutha V** | Frontend Developer & UX Designer |
-| **Rakesh K** | Backend Developer & AI Specialist |
+| Product | Team Leader & Full-Stack Developer |
+| Design | Frontend Developer & UX Designer |
+| Research | Backend Developer & AI Specialist |
 
 ---
 

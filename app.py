@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from functools import wraps
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -253,6 +253,21 @@ def _validate_claim(data) -> tuple[str | None, str | None]:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.route("/")
+def serve_frontend():
+    return send_from_directory(Path(__file__).parent, "index.html")
+
+
+@app.route("/<path:asset_path>")
+def serve_frontend_assets(asset_path):
+    # Limit static serving to the project's public UI assets.
+    if asset_path in {"styles.css", "script.js"}:
+        return send_from_directory(Path(__file__).parent, asset_path)
+    if asset_path in {"assets/logo.svg", "assets/echo-evidence-collage.webp"}:
+        return send_from_directory(Path(__file__).parent, asset_path)
+    return jsonify({"error": "not_found"}), 404
+
+
 @app.route("/analyze", methods=["POST"])
 @rate_limited
 def analyze():
@@ -334,6 +349,47 @@ def analyze():
     }
 
     return jsonify(result)
+
+
+@app.route("/followup", methods=["POST"])
+@rate_limited
+def followup_question_endpoint():
+    """Answer a question using the claim result and its retrieved citations."""
+    if request.content_length and request.content_length > 24000:
+        return jsonify({"error": "bad_request", "message": "Follow-up context is too large."}), 413
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "bad_request", "message": "Request body must be a JSON object."}), 400
+
+    claim = data.get("claim", "")
+    question = data.get("question", "")
+    classification = data.get("classification", "Unknown")
+    explanation = data.get("explanation", "")
+    sources = data.get("evidence_sources", [])
+    score = data.get("score")
+    if not all(isinstance(value, str) for value in (claim, question, classification, explanation)):
+        return jsonify({"error": "bad_request", "message": "Claim, question, verdict, and explanation must be text."}), 400
+    claim, question = claim.strip(), question.strip()
+    if not claim or len(claim) > MAX_CLAIM_LENGTH:
+        return jsonify({"error": "bad_request", "message": "Claim is empty or exceeds the allowed length."}), 400
+    if not question or len(question) > 1200:
+        return jsonify({"error": "bad_request", "message": "Enter a question up to 1,200 characters."}), 400
+    if not isinstance(sources, list) or len(sources) > 8 or any(not isinstance(source, dict) for source in sources):
+        return jsonify({"error": "bad_request", "message": "Evidence sources must be a list of up to 8 records."}), 400
+
+    try:
+        from analysis_engine import answer_followup_question
+        answer = answer_followup_question(claim, question, {
+            "classification": classification[:80],
+            "score": score if isinstance(score, (int, float)) else None,
+            "explanation": explanation[:1800],
+            "evidence_sources": sources,
+        })
+        return jsonify(answer)
+    except Exception as exc:
+        print(f"[WARN] Follow-up answer error: {exc}")
+        return jsonify({"error": "server_error", "message": "Could not answer from this check right now."}), 500
 
 
 @app.route("/evolution", methods=["GET"])
@@ -486,7 +542,7 @@ def submit_correction_endpoint():
     evidence_url = data.get("evidence_url", "").strip()
     rationale = data.get("rationale", "").strip()
     contact_email = data.get("contact_email", "").strip()
-    if len(claim_text) > MAX_CLAIM_LENGTH or len(rationale) > 10000 or len(evidence_url) > 2048 or len(contact_email) > 254:
+    if len(claim_text) > MAX_CLAIM_LENGTH or len(rationale) > 5000 or len(evidence_url) > 2048 or len(contact_email) > 254:
         return jsonify({"error": "bad_request", "message": "One or more correction fields exceed the maximum length."}), 400
     if contact_email and ("@" not in contact_email or any(ch.isspace() for ch in contact_email)):
         return jsonify({"error": "bad_request", "message": "contact_email must be a valid email address or blank."}), 400

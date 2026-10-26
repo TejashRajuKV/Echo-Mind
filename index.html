@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thunderwing Falcons - Echo Mind AI Fact Checker</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Echo Mind — The Open Evidence Project</title>
+    <link rel="stylesheet" href="styles.css?v=20261026-followup">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Backup Font Awesome CDN -->
     <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.15.4/css/all.css" integrity="sha384-rqn26AG5Pj86AF4SO72RK5fyefcQ/x32DNQfChxWvbXIyXFePlEktwD18fEz+kQU" crossorigin="anonymous" onerror="this.onerror=null;this.href='https://use.fontawesome.com/releases/v5.15.4/css/all.css';">
     <!-- Alternative if CDNs fail -->
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation -->
@@ -19,7 +19,7 @@
         <div class="nav-container">
             <div class="nav-logo">
                 <img src="assets/logo.svg" alt="Thunderwing Falcons" class="nav-logo-img">
-                <span>Thunderwing Falcons</span>
+                <span>Echo Mind<span class="nav-mark"> / FIELD NOTES</span></span>
             </div>
             <ul class="nav-menu">
                 <li><a href="#home">Home</a></li>
@@ -41,24 +41,22 @@
     <section id="home" class="hero">
         <div class="hero-container">
             <div class="hero-content">
+                <div class="hero-kicker"><span class="kicker-dot"></span> THE OPEN EVIDENCE PROJECT <span>VOL. 01 / 2026</span></div>
                 <h1 class="hero-title">
-                    <span class="gradient-text">Thunderwing Falcons</span>
-                    <br>Echo Mind
+                    A clearer view<br>of <span class="hero-emphasis">what’s true.</span>
                 </h1>
-                <p class="hero-subtitle">Suggesting intelligent responses and echoes of knowledge</p>
-                <p class="hero-description">
-                    Powered by Google's Vertex AI with Gemini models, our advanced Echo Mind prototype analyzes claims in real-time,
-                    providing comprehensive verification with educational insights and gamified learning.
-                </p>
+                <p class="hero-subtitle">Every claim leaves a trail.</p>
                 <div class="hero-buttons">
-                    <a href="#demo" class="btn btn-primary">Try Demo</a>
-                    <a href="#features" class="btn btn-secondary">Learn More</a>
+                    <a href="#demo" class="btn btn-primary">Check a claim <span aria-hidden="true">↗</span></a>
+                    <a href="#features" class="btn btn-secondary">Explore the method</a>
                 </div>
+                <div class="hero-footnote"><span>01</span> RETRIEVE FIRST <i></i> REASON SECOND <i></i> SHOW YOUR WORK</div>
             </div>
             <div class="hero-visual">
-                <div class="falcon-icon">
-                    <img src="assets/logo.svg" alt="Echo Mind" class="hero-falcon-img">
-                </div>
+                <figure class="hero-art-frame">
+                    <img class="hero-collage" src="assets/echo-evidence-collage.webp" alt="Hand-drawn collage of an eye examining source clippings, connected by orange evidence lines and a blue paper bird">
+                    <figcaption><span>EM—001</span> THE ART OF LOOKING CLOSER</figcaption>
+                </figure>
             </div>
         </div>
     </section>
@@ -66,8 +64,8 @@
     <!-- Features Section -->
     <section id="features" class="features">
         <div class="container">
-            <h2 class="section-title">Powerful Features</h2>
-            <p class="section-subtitle">Advanced AI-powered fact-checking with comprehensive analysis</p>
+            <div class="section-eyebrow">A FIELD GUIDE TO VERIFICATION</div>
+            <h2 class="section-title">Look closer.</h2>
 
             <!-- Core Priority Features -->
             <div class="features-tier-label">Core Evidence & Verification Engine</div>
@@ -77,7 +75,7 @@
                         <i class="fas fa-search-plus"></i>
                     </div>
                     <h3>Evidence Intelligence Engine</h3>
-                    <p>Retrieves verified fact-checks, primary official releases, and live news before reasoning — grounding every verdict in auditable evidence.</p>
+                    <p>Sources first. Answers second.</p>
                 </div>
 
                 <div class="feature-card">
@@ -85,7 +83,7 @@
                         <i class="fas fa-balance-scale"></i>
                     </div>
                     <h3>Multi-Source Conflict Detection</h3>
-                    <p>Detects consensus vs contradiction across independent publishers, calculating weighted convergence and controversy metrics.</p>
+                    <p>Compare independent reporting.</p>
                 </div>
 
                 <div class="feature-card">
@@ -93,7 +91,7 @@
                         <i class="fas fa-project-diagram"></i>
                     </div>
                     <h3>Atomic Claim Decomposition</h3>
-                    <p>Breaks compound statements into verifiable sub-claims, isolating specific factual assertions for granular accuracy.</p>
+                    <p>Unpack claims, one fact at a time.</p>
                 </div>
 
                 <div class="feature-card">
@@ -101,7 +99,7 @@
                         <i class="fas fa-filter"></i>
                     </div>
                     <h3>Echo-Chamber Deduplication</h3>
-                    <p>Detects syndicated wire copies (PTI, AP, Reuters) to eliminate duplicate reporting and prevent artificial consensus inflation.</p>
+                    <p>Spot repeated stories and shared origins.</p>
                 </div>
 
                 <div class="feature-card">
@@ -109,7 +107,7 @@
                         <i class="fas fa-calculator"></i>
                     </div>
                     <h3>Explainable Credibility Scoring</h3>
-                    <p>Transparent multi-factor formula evaluating source agreement, domain authority, and publisher diversity instead of black-box numbers.</p>
+                    <p>See how the evidence shapes the score.</p>
                 </div>
 
                 <div class="feature-card">
@@ -117,7 +115,7 @@
                         <i class="fas fa-gamepad"></i>
                     </div>
                     <h3>Gamified Critical Thinking</h3>
-                    <p>Earn badges, track your verification journey with persistent sessions, and receive category-tailored educational tips.</p>
+                    <p>Build better habits as you investigate.</p>
                 </div>
             </div>
 
@@ -129,7 +127,7 @@
                         <i class="fas fa-history"></i>
                     </div>
                     <h3>Claim Evolution Tracker</h3>
-                    <p>Links repeated versions of the same claim across time — tracking how wording mutates, evidence accumulates, and verdicts drift across publications.</p>
+                    <p>See how a story changes over time.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
 
@@ -138,7 +136,7 @@
                         <i class="fas fa-language"></i>
                     </div>
                     <h3>Indian-Language Verification</h3>
-                    <p>Native support for Kannada, Hindi, Tamil, Telugu, and Bengali. Preserves original vernacular meaning; corroborates with trusted regional publishers like Prajavani and Dainik Jagran.</p>
+                    <p>Check claims in five Indian languages.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
 
@@ -147,7 +145,7 @@
                         <i class="fas fa-file-alt"></i>
                     </div>
                     <h3>Research Document Analysis</h3>
-                    <p>Paste any official notice, circular, or research paper. Echo Mind chunks passages, extracts factual claims, and traces each conclusion to the exact paragraph and estimated page.</p>
+                    <p>Find claims and passages in documents.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
 
@@ -156,7 +154,7 @@
                         <i class="fas fa-bell"></i>
                     </div>
                     <h3>Opt-In Claim Monitoring</h3>
-                    <p>Follow any claim or public issue. Get alerted only when significant new evidence, a correction, or an authoritative official announcement changes the picture.</p>
+                    <p>Follow important claims as they develop.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
 
@@ -165,7 +163,7 @@
                         <i class="fas fa-share-square"></i>
                     </div>
                     <h3>Shareable Evidence Reports</h3>
-                    <p>Generate a clean, linkable fact-check report with full citations, verification date, methodology, and limitations. Includes Google ClaimReview Schema.org JSON-LD structured data for search visibility.</p>
+                    <p>Share a clear report with citations.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
 
@@ -174,7 +172,7 @@
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <h3>Quality &amp; Transparency Dashboard</h3>
-                    <p>Tracks citation coverage, source freshness, unresolved conflicts, failed retrievals, human corrections, latency, and benchmark accuracy for every analysis — full observability.</p>
+                    <p>Explore quality, coverage, and corrections.</p>
                     <span class="feature-ext-badge">Live in Demo</span>
                 </div>
             </div>
@@ -184,8 +182,8 @@
     <!-- Demo Section -->
     <section id="demo" class="demo">
         <div class="container">
-            <h2 class="section-title">Try Echo Mind</h2>
-            <p class="section-subtitle">Enter any claim, paste a document, or try an Indian-language statement to see every engine in action</p>
+            <h2 class="section-title">Check a claim.</h2>
+            <p class="section-subtitle">Bring a question. We’ll follow the sources.</p>
 
             <div class="demo-quick-examples">
                 <span class="demo-examples-label">Quick examples:</span>
@@ -210,53 +208,53 @@
                 <div class="demo-output" id="demoOutput">
                     <div class="demo-placeholder">
                         <i class="fas fa-microscope"></i>
-                        <p>After analysis, use the <strong>Action Toolbar</strong> below the verdict to explore:
-                            Evolution Timeline &bull; Opt-in Monitoring &bull; Shareable Report &bull; Document Deep-Scan &bull; Observability Dashboard &bull; Submit Correction
-                        </p>
+                        <p>Start with a claim. Follow where the evidence leads.</p>
                     </div>
                 </div>
             </div>
+
+            <details class="claim-library" id="claimLibrary">
+                <summary>
+                    <span><i class="fas fa-bookmark" aria-hidden="true"></i> Claim library</span>
+                    <span class="library-summary-note">Recent checks &amp; saved claims <b id="historyCount">0</b></span>
+                </summary>
+                <div class="library-body">
+                    <div class="library-toolbar">
+                        <div class="library-tabs" role="tablist" aria-label="Claim library views">
+                            <button type="button" class="library-tab active" data-library-view="recent">Recent</button>
+                            <button type="button" class="library-tab" data-library-view="saved">Saved</button>
+                        </div>
+                        <span id="libraryStatus" class="library-status" aria-live="polite"></span>
+                    </div>
+                    <div id="claimLibraryList" class="claim-library-list" aria-live="polite">
+                        <p class="library-empty">Your checked claims will appear here.</p>
+                    </div>
+                </div>
+            </details>
         </div>
     </section>
 
     <!-- About Section -->
     <section id="about" class="about">
         <div class="container">
-            <h2 class="section-title">About Echo Mind</h2>
+            <div class="section-eyebrow">THE METHOD</div>
+            <h2 class="section-title">Sources first.<br><em>Then context.</em></h2>
             <div class="about-content">
                 <div class="about-text">
-                    <p>
-                        Echo Mind represents the cutting edge of AI-powered fact-checking technology by Thunderwing Falcons. 
-                        Our prototype combines the power of Google's Vertex AI platform with Gemini 2.5 Pro models and BigQuery database 
-                        to provide accurate, educational, and engaging fact-checking experiences.
-                    </p>
-                    <p>
-                        Built for the modern information age, Echo Mind not only identifies misinformation 
-                        but also educates users on how to become better critical thinkers through gamified 
-                        learning and personalized insights.
-                    </p>
-                    
                     <div class="tech-stack">
-                        <h3>Technology Stack</h3>
+                        <h3>Made to show its work</h3>
                         <div class="tech-tags">
-                            <span class="tech-tag">Vertex AI Platform</span>
-                            <span class="tech-tag">Gemini 2.5 Pro</span>
-                            <span class="tech-tag">BigQuery</span>
-                            <span class="tech-tag">Python</span>
-                            <span class="tech-tag">Flask</span>
-                            <span class="tech-tag">Google Cloud</span>
+                            <span class="tech-tag">Evidence</span>
+                            <span class="tech-tag">Independent sources</span>
+                            <span class="tech-tag">Clear reasoning</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="about-stats">
                     <div class="stat-card">
-                        <div class="stat-number">99%</div>
-                        <div class="stat-label">Accuracy Rate</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">AI</div>
-                        <div class="stat-label">Powered Analysis</div>
+                        <div class="method-sequence"><span>01</span><i></i><span>02</span><i></i><span>03</span></div>
+                        <div class="stat-label">Retrieve <b>→</b> Verify <b>→</b> Explain</div>
                     </div>
                 </div>
             </div>
@@ -266,148 +264,54 @@
     <!-- Team Section -->
     <section id="team" class="team">
         <div class="container">
-            <h2 class="section-title">Meet Thunderwing Falcons</h2>
-            <p class="section-subtitle">The innovative minds behind Echo Mind AI Fact Checker</p>
+            <div class="section-eyebrow">THE PEOPLE BEHIND THE PROJECT</div>
+            <h2 class="section-title">Small team.<br><em>Big questions.</em></h2>
             
             <div class="team-grid">
                 <div class="team-card">
                     <div class="team-info">
-                        <h3>Tejash Raju K V</h3>
-                        <p class="team-role">Team Leader & Full-Stack Developer</p>
-                        <p class="team-description">
-                            Versatile full-stack developer and visionary leader who architected the entire Echo Mind ecosystem. 
-                            Worked extensively on both frontend and backend development, implementing Google Vertex AI integration, 
-                            SQLite database design, responsive web interfaces, and voice interaction features. Led the team in 
-                            creating a comprehensive fact-checking solution with advanced AI analysis, gamification systems, 
-                            and seamless user experience across all platforms.
-                        </p>
-                        <div class="team-contact">
-                            <a href="mailto:tejaskvraju@gmail.com" class="team-email">
-                                <i class="fas fa-envelope"></i>
-                                tejaskvraju@gmail.com
-                            </a>
-                        </div>
+                        <h3>Product</h3>
+                        <p class="team-role">Full-Stack Development</p>
+                        <p class="team-description">Building the product from interface to evidence pipeline.</p>
                         <div class="team-skills">
-                            <span class="skill-tag">Full-Stack Development</span>
-                            <span class="skill-tag">Vertex AI Integration</span>
-                            <span class="skill-tag">Python & Flask</span>
-                            <span class="skill-tag">Frontend Development</span>
-                            <span class="skill-tag">Database Design</span>
-                            <span class="skill-tag">Project Leadership</span>
+                            <span class="skill-tag">Product</span>
+                            <span class="skill-tag">Engineering</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="team-card">
                     <div class="team-info">
-                        <h3>Amrutha V</h3>
-                        <p class="team-role">Frontend Developer & UX Designer</p>
-                        <p class="team-description">
-                            Creative designer and frontend specialist crafting intuitive user experiences. 
-                            Responsible for Echo Mind's responsive design, user interface, and ensuring 
-                            seamless interaction with the AI fact-checking system.
-                        </p>
-                        <div class="team-contact">
-                            <a href="mailto:amruthav182006@gmail.com" class="team-email">
-                                <i class="fas fa-envelope"></i>
-                                amruthav182006@gmail.com
-                            </a>
-                        </div>
+                        <h3>Design</h3>
+                        <p class="team-role">Frontend &amp; UX</p>
+                        <p class="team-description">Designing clear, welcoming ways to explore the evidence.</p>
                         <div class="team-skills">
-                            <span class="skill-tag">UI/UX Design</span>
-                            <span class="skill-tag">JavaScript</span>
-                            <span class="skill-tag">Responsive Design</span>
+                            <span class="skill-tag">Design</span>
+                            <span class="skill-tag">Frontend</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="team-card">
                     <div class="team-info">
-                        <h3>Rakesh K</h3>
-                        <p class="team-role">Backend Developer & AI Specialist</p>
-                        <p class="team-description">
-                            Expert in backend systems and artificial intelligence, focusing on Vertex AI integration, 
-                            database optimization, and ensuring reliable, scalable fact-checking algorithms for Echo Mind.
-                        </p>
-                        <div class="team-contact">
-                            <a href="mailto:rakesh1917k@gmail.com" class="team-email">
-                                <i class="fas fa-envelope"></i>
-                                rakesh1917k@gmail.com
-                            </a>
-                        </div>
+                        <h3>Research</h3>
+                        <p class="team-role">AI &amp; Backend</p>
+                        <p class="team-description">Connecting the analysis engine to credible sources.</p>
                         <div class="team-skills">
-                            <span class="skill-tag">Python</span>
-                            <span class="skill-tag">Vertex AI</span>
-                            <span class="skill-tag">Database Systems</span>
+                            <span class="skill-tag">AI</span>
+                            <span class="skill-tag">Backend</span>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div class="team-mission">
-                <div class="mission-card">
-                    <h3>Our Mission</h3>
-                    <p>
-                        As Thunderwing Falcons, we're committed to developing cutting-edge AI solutions that empower 
-                        users to navigate the complex information landscape. Echo Mind represents our dedication to 
-                        combining speed, precision, and educational value in the fight against misinformation.
-                    </p>
-                </div>
-            </div>
         </div>
     </section>
 
     <!-- Project Info Section -->
     <section id="contact" class="contact">
         <div class="container">
-            <h2 class="section-title">Echo Mind Project</h2>
-            <p class="section-subtitle">AI-powered fact-checking prototype by Thunderwing Falcons</p>
-            
-            <div class="contact-content">
-                <div class="contact-info">
-                    <div class="contact-item">
-                        <i class="fas fa-lightbulb"></i>
-                        <div>
-                            <h3>Innovation</h3>
-                            <p>Suggesting intelligent responses and echoes of knowledge</p>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <i class="fas fa-cogs"></i>
-                        <div>
-                            <h3>Technology</h3>
-                            <p>Vertex AI + Gemini 2.5 Pro + BigQuery</p>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <i class="fas fa-rocket"></i>
-                        <div>
-                            <h3>Mission</h3>
-                            <p>Electrifying speed meets sharp precision</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="project-showcase">
-                    <div class="showcase-card">
-                        <h3>Echo Mind Features</h3>
-                        <ul>
-                            <li>Evidence Intelligence Engine</li>
-                            <li>Multi-Source Conflict Detection</li>
-                            <li>Atomic Claim Decomposition</li>
-                            <li>Echo-Chamber Deduplication</li>
-                            <li>Explainable Credibility Scoring</li>
-                            <li>Gamified Critical Thinking</li>
-                            <li>Claim Evolution Tracker</li>
-                            <li>Indian-Language Verification</li>
-                            <li>Research Document Analysis</li>
-                            <li>Opt-In Claim Monitoring</li>
-                            <li>Shareable Reports &amp; ClaimReview</li>
-                            <li>Quality &amp; Transparency Dashboard</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+            <div class="closing-note"><span>KEEP ASKING.</span><span>KEEP LOOKING.</span><a href="#demo">Check a claim ↗</a></div>
         </div>
     </section>
 
@@ -451,13 +355,13 @@
             <div class="footer-content">
                 <div class="footer-logo">
                     <img src="assets/logo.svg" alt="Thunderwing Falcons" class="footer-logo-img">
-                    <span>Thunderwing Falcons - Echo Mind</span>
+                    <span>Echo Mind</span>
                 </div>
-                <p>&copy; 2024 Thunderwing Falcons. Echo Mind - Suggesting intelligent responses and echoes of knowledge.</p>
+                <p>Follow the evidence.</p>
             </div>
         </div>
     </footer>
 
-    <script src="script.js?v=20261024-ext7"></script>
+    <script src="script.js?v=20261026-followup"></script>
 </body>
 </html>

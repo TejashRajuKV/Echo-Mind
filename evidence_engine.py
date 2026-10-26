@@ -204,7 +204,7 @@ def detect_evidence_stance(claim: str, title: str, text: str, rating: str = "") 
 # ---------------------------------------------------------------------------
 # Source Connector 1: Google Fact Check Tools API
 # ---------------------------------------------------------------------------
-def query_google_fact_check(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+def query_google_fact_check(query: str, max_results: int = 5, language_code: str = "en") -> List[Dict[str, Any]]:
     """
     Query Google's Fact Check Tools API for certified reviews.
     Endpoint: https://factchecktools.googleapis.com/v1alpha1/claims:search
@@ -218,7 +218,7 @@ def query_google_fact_check(query: str, max_results: int = 5) -> List[Dict[str, 
         "query": query,
         "key": api_key,
         "pageSize": max_results,
-        "languageCode": "en",
+        "languageCode": language_code or "en",
     }
 
     results = []
@@ -275,7 +275,7 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
     Query FreeNewsAPI.io or NewsAPI.org for primary news reporting.
     """
     results = []
-    free_news_key = os.environ.get("FREE_NEWS_API_KEY")
+    free_news_key = os.environ.get("FREE_NEWS_API_KEY") or os.environ.get("FREENEWSAPI_KEY")
     news_api_key = os.environ.get("NEWSAPI_KEY") or os.environ.get("NEWS_API_KEY")
 
     clean_query = " ".join([w for w in query.split() if len(w) > 2][:6])
@@ -514,29 +514,58 @@ def query_realtime_updater_context(query: str) -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     """
-    Executes the multi-source evidence intelligence pipeline:
-    1. Queries all connectors in parallel/sequence
-    2. Deduplicates wire copies & groups echo-clusters
-    3. Ranks by Domain Authority + Stance Relevance
-    4. Computes source distribution statistics
+    Executes an adaptive evidence pipeline:
+    1. Selects relevant connectors for the claim and configured API keys
+    2. Uses live news when the claim is time-sensitive or initial evidence is sparse
+    3. Deduplicates wire copies & groups echo-clusters
+    4. Ranks by Domain Authority + Stance Relevance
+    5. Computes source distribution statistics
     """
-    raw_sources: List[Dict[str, Any]] = []
+    from api_decision_engine import build_api_decision, finalize_api_decision
 
-    # 1. Search Google Fact Check Tools API
-    g_sources = query_google_fact_check(claim, max_results=4)
+    raw_sources: List[Dict[str, Any]] = []
+    decision = build_api_decision(claim)
+
+    # Verified claim reviews and local archive are the low-latency first pass.
+    g_route = decision["routes"]["google_fact_check"]
+    g_sources = query_google_fact_check(
+        claim, max_results=4, language_code=decision.get("language_code", "en")
+    ) if g_route["used"] else []
     raw_sources.extend(g_sources)
 
-    # 2. Search Local Curated Fact-Checks Database
+    # The local archive is always queried as it has no external API cost.
     db_sources = query_local_factcheck_db(claim, max_results=4)
     raw_sources.extend(db_sources)
 
-    # 3. Search Real-time Updater Context (Sports / Weather / Breaking)
-    rt_sources = query_realtime_updater_context(claim)
+    direct_sources = g_sources + db_sources
+    direct_stances = {source.get("stance") for source in direct_sources}
+    evidence_is_sparse = len(direct_sources) < 2
+    direct_evidence_conflicts = "supports" in direct_stances and "refutes" in direct_stances
+    needs_live_news = decision["time_sensitive"] or evidence_is_sparse or direct_evidence_conflicts
+
+    # Cached live context is only relevant to rapidly changing claims.
+    rt_route = decision["routes"]["realtime_cache"]
+    realtime_checked = rt_route["configured"] and decision["use_realtime_cache"]
+    rt_sources = query_realtime_updater_context(claim) if (
+        realtime_checked
+    ) else []
     raw_sources.extend(rt_sources)
 
-    # 4. Search Live News Connectors (FreeNewsAPI / NewsAPI)
-    news_sources = query_live_news_sources(claim, max_results=4)
+    # News is a follow-up connector, not a default call for every claim.
+    news_route = decision["routes"]["live_news"]
+    news_checked = news_route["configured"] and needs_live_news
+    news_sources = query_live_news_sources(claim, max_results=4) if news_checked else []
     raw_sources.extend(news_sources)
+    decision = finalize_api_decision(
+        decision,
+        realtime_checked=realtime_checked,
+        news_checked=news_checked,
+        realtime_results=len(rt_sources),
+        news_results=len(news_sources),
+        google_results=len(g_sources),
+        local_results=len(db_sources),
+        direct_source_count=len(direct_sources),
+    )
 
     # --- Deduplication and Cluster Analysis ---
     seen_urls = set()
@@ -586,6 +615,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         },
         "average_authority_score": avg_authority,
         "has_primary_evidence": any(s["authority_score"] >= 90 for s in top_sources),
+        "api_decision": decision,
         "retrieved_at": datetime.utcnow().isoformat() + "Z",
     }
 

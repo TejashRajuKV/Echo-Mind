@@ -18,11 +18,11 @@ def _safe_url(value: Any) -> str:
     return raw
 
 
-def generate_claim_review_jsonld(analysis_result: Dict[str, Any], canonical_url: str = "https://github.com/TejashRajuKV/Echo-Mind") -> Dict[str, Any]:
+def generate_claim_review_jsonld(analysis_result: Dict[str, Any], canonical_url: str = "https://echomind.ai") -> Dict[str, Any]:
     verdict = str(analysis_result.get("classification", "Unknown"))
     claim_text = str(analysis_result.get("claim", "") or "Claim analyzed")
     rating_value = {"Trustworthy": 5, "False": 1, "Suspicious": 2}.get(verdict, 3)
-    canonical = _safe_url(canonical_url) or "https://github.com/TejashRajuKV/Echo-Mind"
+    canonical = _safe_url(canonical_url) or "https://echomind.ai"
     return {
         "@context": "https://schema.org",
         "@type": "ClaimReview",
@@ -30,7 +30,7 @@ def generate_claim_review_jsonld(analysis_result: Dict[str, Any], canonical_url:
         "url": canonical,
         "claimReviewed": claim_text,
         "itemReviewed": {"@type": "Claim", "name": claim_text, "appearance": [{"@type": "CreativeWork", "url": canonical}]},
-        "author": {"@type": "Organization", "name": "Echo Mind Fact Checker by Thunderwing Falcons", "url": "https://github.com/TejashRajuKV/Echo-Mind"},
+        "author": {"@type": "Organization", "name": "Echo Mind Fact Checker by Thunderwing Falcons", "url": "https://echomind.ai"},
         "reviewRating": {
             "@type": "Rating", "ratingValue": rating_value, "bestRating": 5, "worstRating": 1,
             "alternateName": verdict, "ratingExplanation": str(analysis_result.get("explanation", "")),

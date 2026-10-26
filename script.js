@@ -6,8 +6,28 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeScrollAnimations();
     initializeInteractiveEffects();
     initializeTypingEffect();
-    initializeVoiceWelcome();
 });
+
+function sanitizeHTML(markup) {
+    const parsed = new DOMParser().parseFromString(String(markup), 'text/html');
+    parsed.querySelectorAll('script, iframe, object, embed, form').forEach(node => node.remove());
+    parsed.body.querySelectorAll('*').forEach(node => {
+        Array.from(node.attributes).forEach(attribute => {
+            const name = attribute.name.toLowerCase();
+            const value = attribute.value.trim();
+            if (name.startsWith('on') || ((name === 'href' || name === 'src' || name === 'xlink:href') && /^\s*(javascript|vbscript|data):/i.test(value))) {
+                node.removeAttribute(attribute.name);
+            }
+        });
+    });
+    return parsed.body.innerHTML;
+}
+
+function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
 
 function initializeMobileNav() {
     const navToggle = document.querySelector('.nav-toggle');
@@ -115,6 +135,65 @@ function initializeDemoFunctionality() {
         return getBaseUrl() + '/analyze';
     }
 
+    const SAVED_CLAIMS_KEY = 'echomind_saved_claims';
+    let recentChecks = [];
+    let libraryView = 'recent';
+
+    function getSavedClaims() {
+        try {
+            const claims = JSON.parse(localStorage.getItem(SAVED_CLAIMS_KEY) || '[]');
+            return Array.isArray(claims) ? claims.filter(claim => typeof claim === 'string') : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function renderClaimLibrary() {
+        const list = document.getElementById('claimLibraryList');
+        const count = document.getElementById('historyCount');
+        if (!list) return;
+
+        const savedClaims = getSavedClaims();
+        if (count) count.textContent = String(recentChecks.length);
+        const entries = libraryView === 'recent'
+            ? recentChecks.map(entry => ({ ...entry, saved: savedClaims.includes(entry.claim) }))
+            : savedClaims.map(claim => ({ claim, verdict: 'Saved', score: null, saved: true }));
+
+        if (!entries.length) {
+            list.innerHTML = `<p class="library-empty">${libraryView === 'recent' ? 'Your checked claims will appear here.' : 'Save a claim from Recent to keep it here.'}</p>`;
+            return;
+        }
+
+        list.innerHTML = entries.map(entry => `
+            <div class="claim-library-item">
+                <button type="button" class="library-load-claim" data-load-claim="${escapeHTML(entry.claim)}" title="Load this claim into the checker">
+                    <span class="library-claim-text">${escapeHTML(entry.claim)}</span>
+                    <span class="library-claim-meta">${escapeHTML(entry.verdict || 'Checked')}${entry.score !== null && entry.score !== undefined ? ` · ${escapeHTML(entry.score)}/100` : ''}</span>
+                </button>
+                <button type="button" class="library-save-claim ${entry.saved ? 'is-saved' : ''}" data-save-claim="${escapeHTML(entry.claim)}" aria-label="${entry.saved ? 'Remove saved claim' : 'Save claim'}" title="${entry.saved ? 'Remove saved claim' : 'Save claim'}">
+                    <i class="${entry.saved ? 'fas' : 'far'} fa-bookmark" aria-hidden="true"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    async function refreshClaimLibrary() {
+        const status = document.getElementById('libraryStatus');
+        try {
+            const response = await fetch(`${getBaseUrl()}/history`, {
+                headers: { 'X-Session-ID': getSessionId() }
+            });
+            if (!response.ok) throw new Error('History is unavailable');
+            const data = await response.json();
+            recentChecks = Array.isArray(data.history) ? data.history : [];
+            if (status) status.textContent = '';
+            renderClaimLibrary();
+        } catch (_) {
+            if (status) status.textContent = 'History unavailable';
+            renderClaimLibrary();
+        }
+    }
+
     const getClassificationTheme = (classification) => {
         const c = (classification || '').toLowerCase();
         if (c.includes('trustworthy') || c.includes('true')) {
@@ -153,6 +232,19 @@ function initializeDemoFunctionality() {
         const breakdown = data.credibility_breakdown || {};
         const gamification = data.gamification || { points: 0, badges: [] };
         const personalization = data.personalization || { category: 'General', tip: '' };
+        const apiDecision = data.api_decision || {};
+        const apiRouteLabels = {
+            local_factchecks: 'Local fact-check archive',
+            google_fact_check: 'Google Fact Check Tools',
+            live_news: 'Live news',
+            realtime_cache: 'Live context cache'
+        };
+        const apiRouteRows = Object.entries(apiDecision.routes || {}).map(([key, route]) => {
+            const state = route.used ? 'Queried' : (route.configured ? 'Available' : 'Skipped');
+            const provider = route.provider ? ` · ${escapeHTML(route.provider)}` : '';
+            const count = Number.isFinite(route.results_found) ? ` · ${route.results_found} matches` : '';
+            return `<li><span class="api-route-state">${state}</span><strong>${apiRouteLabels[key] || escapeHTML(key)}${provider}${count}</strong><span>${escapeHTML(route.reason || '')}</span></li>`;
+        }).join('');
 
         // Consensus stance calculations for bar
         const supCount = consensus.supporting_sources_count || 0;
@@ -172,7 +264,7 @@ function initializeDemoFunctionality() {
             consensusChipStyle = 'chip-consensus-refuted';
         }
 
-        return `
+        return sanitizeHTML(`
             <div class="evidence-dashboard" style="text-align: left;">
                 <!-- 1. Hero Verdict Card -->
                 <div class="verdict-hero ${theme.heroClass}">
@@ -228,6 +320,9 @@ function initializeDemoFunctionality() {
                     <button class="action-btn" id="btnShareReport">
                         <i class="fas fa-file-alt"></i> Shareable Report &amp; ClaimReview
                     </button>
+                    <button class="action-btn" id="btnExportEvidence" ${sources.length ? '' : 'disabled'}>
+                        <i class="fas fa-download"></i> Export Sources
+                    </button>
                     <button class="action-btn" id="btnOpenDocAnalysis">
                         <i class="fas fa-file-pdf"></i> Research Document Scan
                     </button>
@@ -237,6 +332,24 @@ function initializeDemoFunctionality() {
                     <button class="action-btn" id="btnSubmitCorrection">
                         <i class="fas fa-edit"></i> Submit Correction
                     </button>
+                </div>
+
+                ${apiRouteRows ? `
+                    <details class="api-routing-note">
+                        <summary><i class="fas fa-route" aria-hidden="true"></i> Why these sources?</summary>
+                        <div class="api-routing-meta">${escapeHTML(apiDecision.topic || 'general')} · ${escapeHTML(apiDecision.language || 'English')}${apiDecision.time_sensitive ? ' · time-sensitive' : ''}</div>
+                        <ul>${apiRouteRows}</ul>
+                        <p class="api-reasoning-note">Reasoning: ${escapeHTML(apiDecision.reasoning || 'Evidence is retrieved before analysis.')}</p>
+                    </details>
+                ` : ''}
+
+                <div class="followup-widget" id="followupForm">
+                    <label for="followupQuestion"><i class="fas fa-comment-dots" aria-hidden="true"></i> Ask about this check</label>
+                    <div class="followup-controls">
+                        <input id="followupQuestion" name="question" type="text" maxlength="1200" placeholder="What evidence supports this verdict?" required>
+                        <button class="btn btn-primary" id="askFollowup" type="button">Ask</button>
+                    </div>
+                    <div id="followupAnswer" class="followup-answer" aria-live="polite"></div>
                 </div>
 
                 <!-- 2. Multi-Source Conflict & Consensus Audit -->
@@ -327,13 +440,32 @@ function initializeDemoFunctionality() {
                     </div>
 
                     ${sources.length > 0 ? `
+                        <div class="source-tools" role="search" aria-label="Filter source evidence">
+                            <label class="source-search-label" for="sourceSearch">Find a source</label>
+                            <input id="sourceSearch" class="source-search" type="search" placeholder="Publisher or headline" autocomplete="off">
+                            <label class="source-search-label" for="sourceStanceFilter">Stance</label>
+                            <select id="sourceStanceFilter" class="source-filter">
+                                <option value="all">All sources</option>
+                                <option value="supports">Supports</option>
+                                <option value="refutes">Refutes</option>
+                                <option value="neutral">Context</option>
+                            </select>
+                            <label class="source-search-label" for="sourceSort">Sort</label>
+                            <select id="sourceSort" class="source-filter">
+                                <option value="original">Original order</option>
+                                <option value="authority">Authority: high to low</option>
+                            </select>
+                            <span id="sourceFilterCount" class="source-filter-count" aria-live="polite"></span>
+                        </div>
                         <div class="sources-grid">
                             ${sources.map(s => {
                                 const isHighAuth = (s.authority_score || 50) >= 80;
-                                const stanceClass = s.stance === 'supports' ? 'stance-supports' : (s.stance === 'refutes' ? 'stance-refutes' : 'stance-neutral');
+                                const stance = ['supports', 'refutes'].includes(String(s.stance || '').toLowerCase()) ? String(s.stance).toLowerCase() : 'neutral';
+                                const authority = Number.isFinite(Number(s.authority_score)) ? Math.max(0, Math.min(100, Number(s.authority_score))) : 50;
+                                const stanceClass = stance === 'supports' ? 'stance-supports' : (stance === 'refutes' ? 'stance-refutes' : 'stance-neutral');
                                 const stanceLabel = s.stance === 'supports' ? 'SUPPORTS CLAIM' : (s.stance === 'refutes' ? 'REFUTES CLAIM' : 'NEUTRAL CONTEXT');
                                 return `
-                                    <div class="source-card">
+                                    <div class="source-card" data-source-stance="${stance}" data-source-authority="${authority}">
                                         <div>
                                             <div class="source-card-header">
                                                 <div class="source-publisher">
@@ -473,11 +605,11 @@ function initializeDemoFunctionality() {
                     </div>
                 </div>
             </div>
-        `;
+        `);
     }
 
     function displayError(errorMessage) {
-        return `
+        return sanitizeHTML(`
             <div class="demo-result" style="border-left-color: #ef4444; background: #fef2f2; padding: 1.5rem; border-radius: 12px;">
                 <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <i class="fas fa-exclamation-circle"></i> Service Notice
@@ -492,7 +624,7 @@ function initializeDemoFunctionality() {
                     </ol>
                 </div>
             </div>
-        `;
+        `);
     }
 
     checkClaimBtn.addEventListener('click', async function() {
@@ -544,6 +676,7 @@ function initializeDemoFunctionality() {
             console.log('Analysis result received:', data);
             demoOutput.innerHTML = sanitizeHtml(displayAnalysisResult(data));
             bindActionToolbarEvents(data, claim);
+            refreshClaimLibrary();
 
         } catch (error) {
             console.error('Fetch Error:', error);
@@ -558,6 +691,42 @@ function initializeDemoFunctionality() {
             checkClaimBtn.click();
         }
     });
+
+    const library = document.getElementById('claimLibrary');
+    if (library) {
+        library.addEventListener('click', function(event) {
+            const viewButton = event.target.closest('[data-library-view]');
+            if (viewButton) {
+                libraryView = viewButton.dataset.libraryView;
+                library.querySelectorAll('.library-tab').forEach(button => {
+                    button.classList.toggle('active', button === viewButton);
+                    button.setAttribute('aria-pressed', String(button === viewButton));
+                });
+                renderClaimLibrary();
+                return;
+            }
+
+            const loadButton = event.target.closest('[data-load-claim]');
+            if (loadButton) {
+                claimInput.value = loadButton.dataset.loadClaim || '';
+                claimInput.focus();
+                claimInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            const saveButton = event.target.closest('[data-save-claim]');
+            if (saveButton) {
+                const claim = saveButton.dataset.saveClaim || '';
+                const saved = getSavedClaims();
+                const next = saved.includes(claim)
+                    ? saved.filter(item => item !== claim)
+                    : [claim, ...saved].slice(0, 30);
+                localStorage.setItem(SAVED_CLAIMS_KEY, JSON.stringify(next));
+                renderClaimLibrary();
+            }
+        });
+        refreshClaimLibrary();
+    }
 
     // =========================================================================
     // Modal Helpers & Extension Event Handlers
@@ -590,6 +759,103 @@ function initializeDemoFunctionality() {
     }
 
     function bindActionToolbarEvents(data, currentClaim) {
+        const followupForm = document.getElementById('followupForm');
+        if (followupForm) {
+            const askFollowup = async function() {
+                const questionInput = document.getElementById('followupQuestion');
+                const submitButton = document.getElementById('askFollowup');
+                const answerBox = document.getElementById('followupAnswer');
+                const question = questionInput.value.trim();
+                if (!question) return;
+
+                submitButton.disabled = true;
+                answerBox.textContent = 'Checking the cited evidence…';
+                answerBox.classList.add('is-loading');
+                try {
+                    const response = await fetch(`${getBaseUrl()}/followup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            claim: currentClaim,
+                            question,
+                            classification: data.classification,
+                            score: data.score,
+                            explanation: data.explanation,
+                            evidence_sources: (data.evidence_sources || []).slice(0, 8)
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message || 'Could not answer this question.');
+                    answerBox.innerHTML = `<p>${escapeHTML(result.answer || 'The available evidence does not answer this question.')}</p><span class="followup-mode">${result.grounded ? 'Grounded in this check’s sources' : 'Evidence-only fallback'}</span>`;
+                } catch (error) {
+                    answerBox.textContent = error.message || 'Could not answer this question right now.';
+                } finally {
+                    submitButton.disabled = false;
+                    answerBox.classList.remove('is-loading');
+                }
+            };
+            document.getElementById('askFollowup').addEventListener('click', askFollowup);
+            document.getElementById('followupQuestion').addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    askFollowup();
+                }
+            });
+        }
+
+        // Search, stance filters, authority sorting, and CSV export for the evidence trail.
+        const sourceGrid = document.querySelector('#demoOutput .sources-grid');
+        const sourceSearch = document.getElementById('sourceSearch');
+        const sourceStanceFilter = document.getElementById('sourceStanceFilter');
+        const sourceSort = document.getElementById('sourceSort');
+        const sourceFilterCount = document.getElementById('sourceFilterCount');
+        const sourceCards = sourceGrid ? Array.from(sourceGrid.querySelectorAll('.source-card')) : [];
+
+        function updateSourceList() {
+            if (!sourceGrid) return;
+            const query = (sourceSearch?.value || '').trim().toLocaleLowerCase();
+            const stance = sourceStanceFilter?.value || 'all';
+            sourceCards.forEach(card => {
+                const matchesText = !query || card.textContent.toLocaleLowerCase().includes(query);
+                const matchesStance = stance === 'all' || card.dataset.sourceStance === stance;
+                card.hidden = !(matchesText && matchesStance);
+            });
+            if (sourceSort?.value === 'authority') {
+                sourceCards.slice().sort((a, b) => Number(b.dataset.sourceAuthority) - Number(a.dataset.sourceAuthority))
+                    .forEach(card => sourceGrid.appendChild(card));
+            } else {
+                sourceCards.forEach(card => sourceGrid.appendChild(card));
+            }
+            const visibleCount = sourceCards.filter(card => !card.hidden).length;
+            if (sourceFilterCount) sourceFilterCount.textContent = `${visibleCount} of ${sourceCards.length}`;
+        }
+
+        [sourceSearch, sourceStanceFilter, sourceSort].forEach(control => {
+            control?.addEventListener(control === sourceSearch ? 'input' : 'change', updateSourceList);
+        });
+        updateSourceList();
+
+        const exportEvidenceButton = document.getElementById('btnExportEvidence');
+        exportEvidenceButton?.addEventListener('click', function() {
+            const rows = [['Publisher', 'Title', 'Stance', 'Authority score', 'Date', 'URL', 'Excerpt']];
+            (data.evidence_sources || []).forEach(source => rows.push([
+                source.publisher, source.title, source.stance, source.authority_score, source.date, source.url, source.excerpt
+            ].map(value => {
+                const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+                return /^[\s]*[=+@-]/.test(text) ? `'${text}` : text;
+            })));
+            const csv = rows.map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+            const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'echo-mind-evidence.csv';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
+
         // 1. Claim Evolution Timeline Modal
         const btnEvolution = document.getElementById('btnViewEvolution');
         if (btnEvolution) {
@@ -640,7 +906,7 @@ function initializeDemoFunctionality() {
             btnMonitor.addEventListener('click', function() {
                 showModal('Opt-In Claim Monitoring', `
                     <p style="color: #475569; font-size: 0.92rem; margin-bottom: 1.25rem;">
-                        Follow <strong>"${currentClaim.substring(0, 70)}..."</strong> and get alerted only when significant new evidence, official announcements, or a verdict correction occurs.
+                        Follow <strong>"${escapeHTML(currentClaim.substring(0, 70))}..."</strong> and get alerted only when significant new evidence, official announcements, or a verdict correction occurs.
                     </p>
                     <div style="margin-bottom: 1rem;">
                         <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.35rem;">Email for Notifications (Optional):</label>
@@ -683,12 +949,31 @@ function initializeDemoFunctionality() {
             });
         }
 
-        // 3a. Shareable Report & ClaimReview (opens in new tab)
+        // 3a. Copy a link to the shareable report or open a preview.
         const btnShareReport = document.getElementById('btnShareReport');
         if (btnShareReport) {
             btnShareReport.addEventListener('click', function() {
                 const reportUrl = `${getBaseUrl()}/report?claim=${encodeURIComponent(currentClaim)}`;
-                window.open(reportUrl, '_blank');
+                showModal('Share this report', `
+                    <p class="share-intro">A report link is ready for this claim.</p>
+                    <div class="share-link-row">
+                        <input id="shareReportUrl" type="text" readonly value="${escapeHTML(reportUrl)}" aria-label="Share report URL">
+                        <button type="button" class="btn btn-primary" id="copyReportLink">Copy link</button>
+                    </div>
+                    <a class="share-preview-link" href="${escapeHTML(reportUrl)}" target="_blank" rel="noopener noreferrer">Open report preview ↗</a>
+                    <div class="share-copy-status" id="shareCopyStatus" aria-live="polite"></div>
+                `);
+                document.getElementById('copyReportLink').addEventListener('click', async function() {
+                    const status = document.getElementById('shareCopyStatus');
+                    try {
+                        await navigator.clipboard.writeText(reportUrl);
+                        status.textContent = 'Copied to clipboard';
+                    } catch (_) {
+                        const input = document.getElementById('shareReportUrl');
+                        input.select();
+                        status.textContent = 'Select and copy the link';
+                    }
+                });
             });
         }
 
@@ -1067,10 +1352,11 @@ function addWelcomeVoiceButton() {
     `;
     welcomeButton.style.cssText = `
         position: fixed;
-        top: 100px;
+        top: auto;
+        bottom: 20px;
         right: 20px;
         z-index: 1000;
-        animation: bounce 2s infinite;
+        animation: none;
     `;
     
     // Add bounce animation
@@ -1079,23 +1365,23 @@ function addWelcomeVoiceButton() {
         style.id = 'welcome-voice-style';
         style.textContent = `
             .welcome-voice-btn {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                padding: 0.75rem 1.5rem;
-                border-radius: 25px;
-                font-size: 0.9rem;
-                font-weight: 500;
+                background: #20231f;
+                color: #fffdf8;
+                border: 1px solid #df6945;
+                padding: 0.65rem 0.9rem;
+                border-radius: 2px;
+                font-size: 0.76rem;
+                font-weight: 600;
                 cursor: pointer;
                 transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                box-shadow: 3px 3px 0 rgba(223, 105, 69, 0.65);
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
             }
             .welcome-voice-btn:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+                box-shadow: 3px 3px 0 rgba(49, 95, 199, 0.65);
             }
             @keyframes bounce {
                 0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
