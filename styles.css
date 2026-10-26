@@ -1448,45 +1448,94 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Action Toolbar */
 .action-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    padding: 0.75rem 1rem;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    background: var(--paper, #f7f5ef);
+    border: 1px solid var(--line, #d6d9e2);
+}
+
+.action-toolbar-primary,
+.action-toolbar-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
 }
 
 .action-btn {
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    padding: 0.45rem 0.9rem;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 600;
+    min-width: 0;
+    min-height: 42px;
+    justify-content: flex-start;
+    background: var(--paper-light, #fffdfa);
+    color: var(--ink, #252722);
+    border: 1px solid var(--line, #d6d9e2);
+    padding: 0.55rem 0.75rem;
+    border-radius: 2px;
+    font: 500 0.72rem/1.25 var(--sans, sans-serif);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    transition: all 0.2s ease;
+    gap: 0.6rem;
+    text-align: left;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
 .action-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-    border-color: #94a3b8;
+    background: #fff;
+    color: var(--ink, #20231f);
+    border-color: var(--coral, #ef8566);
     transform: translateY(-1px);
 }
 
+.action-btn:focus-visible,
+.action-toolbar-more > summary:focus-visible {
+    outline: 2px solid var(--blue, #315fc7);
+    outline-offset: 2px;
+}
+
+.action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.action-btn > i { width: 1rem; flex: 0 0 1rem; color: var(--coral, #d66c47); text-align: center; }
+.action-btn > span { min-width: 0; }
+.action-btn small { margin-left: 0.25rem; color: var(--muted-ink, #72736d); font: 500 0.62rem var(--mono, monospace); }
+
 .action-btn.btn-primary-action {
-    background: #eef2ff;
-    color: #4338ca;
-    border-color: #c7d2fe;
+    background: #edf1fb;
+    color: #284f9e;
+    border-color: #cbd5eb;
 }
 .action-btn.btn-primary-action:hover {
-    background: #e0e7ff;
-    border-color: #a5b4fc;
+    background: #e4eafa;
+    border-color: #9fb2de;
+}
+
+.action-toolbar-more > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    color: var(--muted-ink, #65675f);
+    font: 500 0.64rem var(--mono, monospace);
+    cursor: pointer;
+    list-style: none;
+}
+.action-toolbar-more > summary::-webkit-details-marker { display: none; }
+.action-toolbar-more > summary > i { color: var(--coral, #d66c47); }
+.action-toolbar-more > summary > span {
+    display: grid;
+    width: 1.15rem;
+    height: 1.15rem;
+    place-items: center;
+    border: 1px solid var(--line, #d6d9e2);
+    border-radius: 50%;
+    color: var(--muted-ink, #72736d);
+    font-size: 0.55rem;
+}
+.action-toolbar-more[open] > summary { margin-bottom: 0.65rem; }
+
+@media (max-width: 560px) {
+    .action-toolbar { padding: 0.75rem; }
+    .action-toolbar-primary,
+    .action-toolbar-secondary { grid-template-columns: 1fr; }
 }
 
 /* Indian Language Banner */

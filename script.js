@@ -315,28 +315,35 @@ function initializeDemoFunctionality() {
                 ` : ''}
 
                 <!-- Action Toolbar for Extensions -->
-                <div class="action-toolbar">
-                    <button class="action-btn btn-primary-action" id="btnViewEvolution">
-                        <i class="fas fa-history"></i> Evolution Timeline (${data.claim_evolution ? (data.claim_evolution.total_variants || 1) : 1})
-                    </button>
-                    <button class="action-btn" id="btnMonitorClaim">
-                        <i class="fas fa-bell"></i> Follow Updates (Opt-in)
-                    </button>
-                    <button class="action-btn" id="btnShareReport">
-                        <i class="fas fa-file-alt"></i> Shareable Report &amp; ClaimReview
-                    </button>
-                    <button class="action-btn" id="btnExportEvidence" ${sources.length ? '' : 'disabled'}>
-                        <i class="fas fa-download"></i> Export Sources
-                    </button>
-                    <button class="action-btn" id="btnOpenDocAnalysis">
-                        <i class="fas fa-file-pdf"></i> Research Document Scan
-                    </button>
-                    <button class="action-btn" id="btnOpenTransparency">
-                        <i class="fas fa-chart-line"></i> Quality Observability
-                    </button>
-                    <button class="action-btn" id="btnSubmitCorrection">
-                        <i class="fas fa-edit"></i> Submit Correction
-                    </button>
+                <div class="action-toolbar" aria-label="Tools for this claim">
+                    <div class="action-toolbar-primary">
+                        <button class="action-btn btn-primary-action" id="btnViewEvolution">
+                            <i class="fas fa-history" aria-hidden="true"></i><span>Timeline <small>${data.claim_evolution ? (data.claim_evolution.total_variants || 1) : 1}</small></span>
+                        </button>
+                        <button class="action-btn" id="btnMonitorClaim">
+                            <i class="fas fa-bell" aria-hidden="true"></i><span>Follow updates</span>
+                        </button>
+                        <button class="action-btn" id="btnShareReport">
+                            <i class="fas fa-file-alt" aria-hidden="true"></i><span>Share report</span>
+                        </button>
+                        <button class="action-btn" id="btnExportEvidence" ${sources.length ? '' : 'disabled'}>
+                            <i class="fas fa-download" aria-hidden="true"></i><span>Export sources</span>
+                        </button>
+                    </div>
+                    <details class="action-toolbar-more">
+                        <summary><i class="fas fa-plus" aria-hidden="true"></i> More tools <span>3</span></summary>
+                        <div class="action-toolbar-secondary">
+                            <button class="action-btn" id="btnOpenDocAnalysis">
+                                <i class="fas fa-file-pdf" aria-hidden="true"></i><span>Scan a document</span>
+                            </button>
+                            <button class="action-btn" id="btnOpenTransparency">
+                                <i class="fas fa-chart-line" aria-hidden="true"></i><span>Quality metrics</span>
+                            </button>
+                            <button class="action-btn" id="btnSubmitCorrection">
+                                <i class="fas fa-edit" aria-hidden="true"></i><span>Suggest a correction</span>
+                            </button>
+                        </div>
+                    </details>
                 </div>
 
                 ${apiRouteRows ? `
