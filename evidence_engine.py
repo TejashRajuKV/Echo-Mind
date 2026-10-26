@@ -521,7 +521,10 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     4. Ranks by Domain Authority + Stance Relevance
     5. Computes source distribution statistics
     """
-    from api_decision_engine import build_api_decision, finalize_api_decision
+    from api_decision_engine import (
+        build_api_decision, finalize_api_decision, is_relevant_officeholder_article,
+    )
+    from publisher_identity import publisher_identity
 
     raw_sources: List[Dict[str, Any]] = []
     decision = build_api_decision(claim)
@@ -539,11 +542,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
 
     direct_sources = g_sources + db_sources
     direct_stances = {source.get("stance") for source in direct_sources}
-    direct_publishers = {
-        str(source.get("domain") or source.get("publisher") or "").strip().lower().removeprefix("www.")
-        for source in direct_sources
-        if str(source.get("domain") or source.get("publisher") or "").strip()
-    }
+    direct_publishers = {publisher_identity(source) for source in direct_sources}
     # Repeated URLs or multiple records from one outlet are not independent
     # coverage and should not suppress the live-news follow-up route.
     direct_source_count = len(direct_publishers)
@@ -562,7 +561,10 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     # News is a follow-up connector, not a default call for every claim.
     news_route = decision["routes"]["live_news"]
     news_checked = news_route["configured"] and needs_live_news
-    news_sources = query_live_news_sources(claim, max_results=4) if news_checked else []
+    news_query = decision.get("live_news_query") or claim
+    news_sources = query_live_news_sources(news_query, max_results=8) if news_checked else []
+    if news_sources:
+        news_sources = [source for source in news_sources if is_relevant_officeholder_article(claim, source)][:4]
     raw_sources.extend(news_sources)
     decision = finalize_api_decision(
         decision,

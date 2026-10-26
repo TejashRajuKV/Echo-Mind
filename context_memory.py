@@ -18,6 +18,7 @@ from typing import Any
 DB_PATH = Path(__file__).parent / "context_memory.db"
 DEFAULT_TTL_SECONDS = 6 * 60 * 60
 LIVE_TTL_SECONDS = 15 * 60
+CACHE_RESULT_SCHEMA_VERSION = 2
 MAX_CLAIM_CHARS = 2000
 STOP_WORDS = {
     "the", "and", "for", "with", "from", "that", "this", "was", "were", "are",
@@ -119,7 +120,7 @@ def _safe_sources(result: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 def _ttl_for_claim(claim: str) -> int:
-    live_terms = re.compile(r"\b(today|now|currently|latest|current|this week|202[5-9]|202[0-9]|price|rate|captain|minister|result|election|weather|score|breaking)\b", re.I)
+    live_terms = re.compile(r"\b(today|now|currently|latest|current|present|this week|202[5-9]|202[0-9]|price|rate|captain|minister|cm|pm|result|election|weather|score|breaking)\b", re.I)
     return LIVE_TTL_SECONDS if live_terms.search(claim) else DEFAULT_TTL_SECONDS
 
 def get_preferences(session_id: str) -> dict[str, Any]:
@@ -251,6 +252,7 @@ def cache_analysis(claim: str, result: dict[str, Any]) -> None:
     now = utc_now()
     ttl = _ttl_for_claim(claim)
     safe_result = dict(result)
+    safe_result["cache_schema_version"] = CACHE_RESULT_SCHEMA_VERSION
     safe_result.pop("session", None)
     safe_result.pop("gamification", None)
     safe_result.pop("personalization", None)
@@ -277,16 +279,19 @@ def get_cached_analysis(claim: str) -> dict[str, Any] | None:
     now = utc_now()
     expires = datetime.fromisoformat(row["expires_at"])
     created = datetime.fromisoformat(row["created_at"])
-    fresh = expires > now
+    cached_result = json.loads(row["result_json"])
+    schema_compatible = cached_result.get("cache_schema_version") == CACHE_RESULT_SCHEMA_VERSION
+    fresh = expires > now and schema_compatible
     conn.execute("UPDATE evidence_cache SET last_hit_at=?,hit_count=hit_count+1 WHERE fingerprint=?",
                  (_iso(now), row["fingerprint"]))
     conn.commit()
     conn.close()
-    return {"fresh": fresh, "claim": row["claim"], "result": json.loads(row["result_json"]) if fresh else None,
+    return {"fresh": fresh, "claim": row["claim"], "result": cached_result if fresh else None,
             "sources": json.loads(row["sources_json"]), "created_at": row["created_at"],
             "expires_at": row["expires_at"], "age_seconds": max(0, int((now-created).total_seconds())),
             "hit_count": int(row["hit_count"]) + 1,
-            "requires_revalidation": not fresh}
+            "requires_revalidation": not fresh,
+            "schema_compatible": schema_compatible}
 
 def list_investigations(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
     conn = _conn()

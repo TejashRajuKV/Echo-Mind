@@ -457,7 +457,7 @@ function initializeDemoFunctionality() {
                     <div class="consensus-metrics">
                         <div class="metric-pill">
                             <i class="fas fa-building" style="color: #6366f1;"></i>
-                            <strong>${consensus.independent_publisher_count || sources.length || 1}</strong> Independent Publishers
+                            <strong>${Number.isFinite(Number(consensus.independent_publisher_count)) ? Number(consensus.independent_publisher_count) : sources.length}</strong> Independent Publishers
                         </div>
                         <div class="metric-pill">
                             <i class="fas fa-shield-alt" style="color: #10b981;"></i>

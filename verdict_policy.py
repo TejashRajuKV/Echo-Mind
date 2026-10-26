@@ -1,10 +1,11 @@
 from typing import Any, Dict, Tuple
+from publisher_identity import publisher_identity
 
 
 def reconcile_verdict(model_verdict: str, consensus: Dict[str, Any], evidence_sources: list) -> Tuple[str, str]:
     """Conservative evidence-first verdict policy; return (classification, reason)."""
     sources = evidence_sources if isinstance(evidence_sources, list) else []
-    publishers = {str(s.get('domain') or s.get('publisher') or '').strip().casefold() for s in sources if isinstance(s, dict) and str(s.get('publisher', '')).strip()}
+    publishers = {publisher_identity(s) for s in sources if isinstance(s, dict)}
     direction = str(consensus.get('consensus_direction', 'unknown')).casefold()
     if not sources or len(publishers) < 2:
         return 'Suspicious', 'Insufficient independent evidence: at least two distinct publishers are required for a decisive verdict.'

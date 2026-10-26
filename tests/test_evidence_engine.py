@@ -1,4 +1,5 @@
 from evidence_engine import detect_evidence_stance, gather_evidence_pipeline
+from api_decision_engine import build_api_decision, officeholder_search_query
 
 
 def test_explicit_fact_check_rating_takes_precedence():
@@ -28,3 +29,41 @@ def test_retrieval_deduplicates_duplicate_urls_and_syndication(monkeypatch):
     assert result['sources'][0]['publisher'] == 'Publisher A'
     assert result['sources'][0]['echo_count'] == 1
     assert result['sources'][0]['is_echo_chamber'] is True
+
+
+def test_officeholder_claim_routes_to_focused_live_news_search():
+    decision = build_api_decision('present cm of karnataka is pm modi')
+    assert decision['topic'] == 'politics'
+    assert decision['time_sensitive'] is True
+    assert officeholder_search_query('present cm of karnataka is pm modi') == 'karnataka current chief minister'
+    assert decision['live_news_query'] == 'karnataka current chief minister'
+
+
+def test_officeholder_search_discards_unrelated_live_articles(monkeypatch):
+    monkeypatch.setenv('FREE_NEWS_API_KEY', 'test-news-key')
+    monkeypatch.delenv('GOOGLE_FACT_CHECK_API_KEY', raising=False)
+    monkeypatch.setattr('evidence_engine.query_google_fact_check', lambda *args, **kwargs: [])
+    monkeypatch.setattr('evidence_engine.query_local_factcheck_db', lambda *args, **kwargs: [])
+    monkeypatch.setattr('evidence_engine.query_realtime_updater_context', lambda *args, **kwargs: [])
+    monkeypatch.setattr('evidence_engine.query_live_news_sources', lambda *args, **kwargs: [
+        {'url': 'https://example.com/cec', 'title': 'CEC row complicates Centre plan',
+         'excerpt': 'Election officials discuss delimitation', 'publisher': 'Example',
+         'domain': 'example.com', 'stance': 'neutral', 'authority_score': 80,
+         'cluster_id': 'cec-story'},
+        {'url': 'https://example.org/assam', 'title': 'Assam CM challenges opposition',
+         'excerpt': 'Assam chief minister speaks about electoral rolls', 'publisher': 'Example Org',
+         'domain': 'example.org', 'stance': 'neutral', 'authority_score': 70,
+         'cluster_id': 'assam-story'},
+    ])
+    result = gather_evidence_pipeline('present cm of karnataka is pm modi')
+    assert result['sources'] == []
+    assert result['api_decision']['routes']['live_news']['results_found'] == 0
+
+
+def test_publisher_aliases_and_article_title_hashes_do_not_fake_independence():
+    from publisher_identity import publisher_identity
+    sources = [
+        {'domain': 'economictimes.indiatimes.com', 'publisher': 'The Times of India', 'cluster_id': 'titlehash1'},
+        {'domain': 'timesofindia.indiatimes.com', 'publisher': 'The Times of India', 'cluster_id': 'titlehash2'},
+    ]
+    assert len({publisher_identity(source) for source in sources}) == 1

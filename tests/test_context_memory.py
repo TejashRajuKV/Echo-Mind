@@ -31,6 +31,27 @@ def test_exact_claim_cache_hit_and_expiry(monkeypatch, tmp_path):
     assert expired["requires_revalidation"] is True
 
 
+def test_old_cache_schema_is_not_served_as_a_fresh_verdict(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    claim = "present CM of Karnataka is PM Modi"
+    memory.cache_analysis(claim, {"classification": "Suspicious", "sources": [
+        {"title": "Article", "url": "https://example.com/story"}
+    ]})
+    conn = memory._conn()
+    row = conn.execute("SELECT result_json FROM evidence_cache WHERE fingerprint=?", (memory.fingerprint(claim),)).fetchone()
+    old_result = json.loads(row["result_json"])
+    old_result["cache_schema_version"] = 1
+    conn.execute("UPDATE evidence_cache SET result_json=? WHERE fingerprint=?",
+                 (json.dumps(old_result), memory.fingerprint(claim)))
+    conn.commit()
+    conn.close()
+    cached = memory.get_cached_analysis(claim)
+    assert cached["fresh"] is False
+    assert cached["result"] is None
+    assert cached["schema_compatible"] is False
+    assert memory.prepare_context("session", claim)["mode"] == "fresh"
+
+
 def test_related_investigation_is_session_scoped(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     first = memory.record_investigation("session-a", "Government gives 15000 rupees to every student", {

@@ -15,15 +15,61 @@ TOPIC_TERMS = {
     "sports": ("cricket", "football", "soccer", "ipl", "fifa", "world cup", "match", "score", "captain", "tournament", "player"),
     "weather": ("weather", "rainfall", "temperature", "cyclone", "flood", "forecast", "monsoon"),
     "health": ("covid", "coronavirus", "vaccine", "medicine", "health", "disease", "virus", "treatment", "clinical", "hospital", "who "),
-    "politics": ("election", "government", "minister", "parliament", "policy", "president", "prime minister", "vote"),
+    "politics": ("election", "government", "minister", "parliament", "policy", "president", "prime minister", "vote", "chief minister", " cm ", " pm "),
     "finance": ("stock", "share price", "inflation", "interest rate", "gdp", "market", "rupee", "economy", "budget"),
     "science": ("study", "research", "scientist", "experiment", "climate", "space", "technology", "scientific"),
 }
 
 FRESHNESS_TERMS = (
     "today", "currently", "right now", "latest", "this week", "this month", "breaking",
-    "just announced", "recently", "as of", "current", "live",
+    "just announced", "recently", "as of", "current", "present", "live",
 )
+
+OFFICEHOLDER_OFFICES = {
+    "chief_minister": ("chief minister", "chief-minister", "cm"),
+    "prime_minister": ("prime minister", "prime-minister", "pm"),
+    "president": ("president",),
+}
+
+INDIAN_STATES = (
+    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh", "goa",
+    "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka", "kerala",
+    "madhya pradesh", "maharashtra", "manipur", "meghalaya", "mizoram", "nagaland",
+    "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu", "telangana", "tripura",
+    "uttar pradesh", "uttarakhand", "west bengal",
+)
+
+
+def officeholder_search_query(claim: str) -> str | None:
+    """Turn shorthand current-office claims into focused live-news searches."""
+    normalized = " " + " ".join(str(claim or "").casefold().split()) + " "
+    office = next((name for name, aliases in OFFICEHOLDER_OFFICES.items()
+                   if any(re.search(rf"\b{re.escape(alias)}\b", normalized) for alias in aliases)), None)
+    if not office:
+        return None
+    if office == "chief_minister":
+        jurisdiction = next((state for state in INDIAN_STATES if state in normalized), None)
+        if jurisdiction:
+            return f"{jurisdiction} current chief minister"
+        return "India current chief minister"
+    if office == "prime_minister":
+        return "India current prime minister"
+    return "India current president"
+
+
+def is_relevant_officeholder_article(query: str, article: dict) -> bool:
+    """Keep only live articles that explicitly cover the office and jurisdiction."""
+    normalized = " " + " ".join(str(query or "").casefold().split()) + " "
+    office_query = officeholder_search_query(query)
+    if not office_query:
+        return True
+    text = " ".join(str(article.get(key) or "") for key in ("title", "excerpt", "description", "snippet")).casefold()
+    office_terms = ("chief minister", "chief-minister", " cm ") if "chief minister" in office_query else ("prime minister", "prime-minister", " pm ") if "prime minister" in office_query else ("president",)
+    has_office = any(term in f" {text} " for term in office_terms)
+    jurisdiction = next((state for state in INDIAN_STATES if state in normalized), None)
+    if jurisdiction:
+        return has_office and jurisdiction in text
+    return has_office and ("india" in text or "indian" in text)
 
 
 def _has_key(*names: str) -> bool:
@@ -107,6 +153,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
             },
         },
         "reasoning": "Gemini explains retrieved evidence when configured; otherwise the deterministic evidence-only fallback is used.",
+        "live_news_query": officeholder_search_query(claim) or claim,
     }
 
 

@@ -95,6 +95,8 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
     Analyzes multi-source agreement vs contradiction across independent sources.
     Calculates weighted consensus and detects controversy/conflict.
     """
+    from publisher_identity import publisher_identity
+
     if not sources:
         return {
             "status": "Unverified / Insufficient Evidence",
@@ -128,10 +130,7 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
         weight = max(0.3, auth / 100.0)
         stance = s.get("stance", "neutral")
         cid = str(s.get("cluster_id") or "standalone").strip().casefold()
-        raw_publisher = str(s.get("domain") or s.get("publisher") or "unknown").strip().casefold()
-        # Syndicated copies sharing a known non-standalone cluster count as one
-        # independent evidence origin even when republished on different domains.
-        pub = f"cluster:{cid}" if cid and cid != "standalone" else raw_publisher
+        pub = publisher_identity(s)
 
         if s.get("is_echo_chamber", False):
             echo_count += 1
