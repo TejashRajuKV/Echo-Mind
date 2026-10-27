@@ -687,6 +687,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         current_badges = []
 
     start_time = time.time()
+    retrieval_error = None
 
     # Step 1: Pre-retrieval Evidence Intelligence Engine
     try:
@@ -694,11 +695,26 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         evidence_data = gather_evidence_pipeline(text)
     except Exception as exc:
         print(f"[WARN] Evidence pipeline error: {exc}")
+        retrieval_error = type(exc).__name__
+        try:
+            from api_decision_engine import build_api_decision
+            api_decision = build_api_decision(text)
+            news_route = api_decision.get("routes", {}).get("live_news", {})
+            if news_route.get("configured"):
+                news_route["used"] = False
+                news_route["reason"] = (
+                    f"The provider key is configured, but the evidence pipeline stopped ({type(exc).__name__}) "
+                    "before it recorded a live-search result. Check the Render deployment logs."
+                )
+        except Exception:
+            api_decision = {}
         evidence_data = {
             "sources": [],
             "stance_summary": {"supports": 0, "refutes": 0, "neutral": 0},
             "average_authority_score": 50,
             "has_primary_evidence": False,
+            "api_decision": api_decision,
+            "retrieval_error": retrieval_error,
         }
 
     # Step 2: Multi-Source Verification & Conflict Detection
@@ -750,6 +766,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             "detail": (
                 "No sources were retrieved, so Echo Mind has not checked this claim. "
                 "A zero-source result is not evidence that the claim is true or false."
+                + (f" Evidence retrieval stopped with a {retrieval_error}; check the backend deployment logs." if retrieval_error else "")
             ),
         }
 
@@ -763,7 +780,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             "explanation": "No sources were retrieved, so this claim has not been verified.",
             "mode": "no_evidence",
             "score": 50,
-            "tips": ["Add a live-news provider key and retry, or verify through current primary sources."],
+            "tips": ["Check the source-routing details and verify through current primary sources."],
             "staleness_warning": bool(evidence_data.get("api_decision", {}).get("time_sensitive", False)),
         }
 
@@ -795,7 +812,12 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         live_news_route = (
             evidence_data.get("api_decision", {}).get("routes", {}).get("live_news", {})
         )
-        if not live_news_route.get("configured"):
+        if retrieval_error:
+            retrieval_note = (
+                f"Evidence retrieval stopped with a {retrieval_error}; check the Render deployment logs. "
+                + ("The backend detected a news-provider key." if live_news_route.get("configured") else "The backend did not detect a configured news-provider key.")
+            )
+        elif not live_news_route.get("configured"):
             retrieval_note = "No live-news API key is configured; Gemini does not search for news."
         elif live_news_route.get("used"):
             retrieval_note = "Live news was queried but returned no matching articles."
