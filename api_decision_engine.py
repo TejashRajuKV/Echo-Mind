@@ -25,6 +25,12 @@ FRESHNESS_TERMS = (
     "just announced", "recently", "as of", "current", "present", "live",
 )
 
+# Death claims about living people can change by the hour and need fresh reporting.
+DEATH_CLAIM_TERMS = (
+    " is dead", " are dead", " died", " death", " has died", " passed away",
+    " has passed away", " was killed", " assassinated", " deceased",
+)
+
 OFFICEHOLDER_OFFICES = {
     "chief_minister": ("chief minister", "chief-minister", "cm"),
     "prime_minister": ("prime minister", "prime-minister", "pm"),
@@ -135,6 +141,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
         topic in {"sports", "weather"}
         or officeholder_search_query(claim) is not None
         or any(term in normalized for term in FRESHNESS_TERMS)
+        or any(term in normalized for term in DEATH_CLAIM_TERMS)
         or bool(re.search(r"\b20\d{2}\b", normalized))
     )
     use_realtime_cache = topic in {"sports", "weather"} or "breaking news" in normalized or "live score" in normalized
@@ -146,8 +153,11 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
     if _has_key("FREE_NEWS_API_KEY", "FREENEWSAPI_KEY"):
         news_provider = "FreeNewsAPI"
         news_fallback = "NewsAPI" if _has_key("NEWSAPI_KEY", "NEWS_API_KEY") else None
-    else:
+    elif _has_key("NEWSAPI_KEY", "NEWS_API_KEY"):
         news_provider = "NewsAPI"
+        news_fallback = None
+    else:
+        news_provider = None
         news_fallback = None
 
     return {

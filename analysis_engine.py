@@ -735,8 +735,37 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             }
         }
 
-    # Step 3: Model reasoning grounded in the verified evidence
-    model_analysis = misinformation_detector_and_explainer(text, evidence_data, verification_data)
+    # Empty retrieval is not evidence against a claim. Keep the result explicitly
+    # unverified and prevent a language model from filling the gap from memory.
+    if not evidence_data.get("sources"):
+        verification_data = dict(verification_data)
+        verification_data["consensus"] = {
+            **verification_data.get("consensus", {}),
+            "status": "Not verified — no sources found",
+            "consensus_direction": "unknown",
+            "supporting_sources_count": 0,
+            "refuting_sources_count": 0,
+            "neutral_sources_count": 0,
+            "independent_publisher_count": 0,
+            "detail": (
+                "No sources were retrieved, so Echo Mind has not checked this claim. "
+                "A zero-source result is not evidence that the claim is true or false."
+            ),
+        }
+
+    # Step 3: Model reasoning grounded in retrieved evidence. Do not spend a
+    # Gemini request or invite a memory-based answer when retrieval found none.
+    if evidence_data.get("sources"):
+        model_analysis = misinformation_detector_and_explainer(text, evidence_data, verification_data)
+    else:
+        model_analysis = {
+            "classification": "Unverified",
+            "explanation": "No sources were retrieved, so this claim has not been verified.",
+            "mode": "no_evidence",
+            "score": 50,
+            "tips": ["Add a live-news provider key and retry, or verify through current primary sources."],
+            "staleness_warning": bool(evidence_data.get("api_decision", {}).get("time_sensitive", False)),
+        }
 
     # Evidence-first reconciliation: the language model may explain evidence but cannot
     # overrule conflict or manufacture a decisive verdict from a single publisher.
@@ -758,13 +787,33 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         score = int(round((model_score * 0.4) + (cred.get("score", 50) * 0.6)))
     else:
         score = int(cred.get("score", 50))
-    if verdict == "Suspicious":
+    if not evidence_data.get("sources"):
+        verdict = "Unverified"
+        # Keep the internal numeric field for history/report schema compatibility;
+        # the UI hides this score when there is no retrieved evidence.
+        score = 50
+        live_news_route = (
+            evidence_data.get("api_decision", {}).get("routes", {}).get("live_news", {})
+        )
+        if not live_news_route.get("configured"):
+            retrieval_note = "No live-news API key is configured; Gemini does not search for news."
+        elif live_news_route.get("used"):
+            retrieval_note = "Live news was queried but returned no matching articles."
+        else:
+            retrieval_note = "The live-news route was not queried for this claim."
+        explanation = (
+            "No sources were retrieved, so this claim has not been verified. "
+            "This result does not mean the claim is true or false. " + retrieval_note
+        )
+        explanation_mode = "no_evidence"
+    elif verdict == "Suspicious":
         score = min(score, 49)
     score = max(0, min(100, score))
 
     model_verdict = model_analysis.get("classification", "Unknown")
-    explanation_mode = model_analysis.get("mode", "evidence_fallback")
-    if verdict == "Suspicious":
+    if evidence_data.get("sources"):
+        explanation_mode = model_analysis.get("mode", "evidence_fallback")
+    if evidence_data.get("sources") and verdict == "Suspicious":
         explanation = (
             f"{reconciliation_reason} The retrieved trail contains "
             f"{cons.get('supporting_sources_count', 0)} supporting, "
@@ -774,13 +823,13 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             "A source may point strongly in one direction, but this result remains unverified until independent directional evidence is available."
         )
         explanation_mode = "evidence_reconciled"
-    elif model_verdict != verdict:
+    elif evidence_data.get("sources") and model_verdict != verdict:
         explanation = (
             f"{reconciliation_reason} The displayed verdict follows the retrieved-source audit; "
             "the model's initial label was not used because it did not match that audit."
         )
         explanation_mode = "evidence_reconciled"
-    else:
+    elif evidence_data.get("sources"):
         explanation = model_analysis.get("explanation") or cons.get("detail", "Analysis based on retrieved evidence.")
     model_tips = model_analysis.get("tips", [])
     all_tips = [tip for tip in model_tips if isinstance(tip, str) and tip.strip()][:4]
@@ -836,7 +885,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
     if evidence_cards:
         evidence_text = f"Analyzed {len(evidence_cards)} sources ({cons.get('supporting_sources_count',0)} supporting, {cons.get('refuting_sources_count',0)} refuting). Top authority: {evidence_cards[0]['publisher']} ({evidence_cards[0]['authority_score']}/100)."
     else:
-        evidence_text = "No direct fact-checks found. Verification derived from domain analysis and contextual corroboration."
+        evidence_text = "No sources were retrieved. This claim has not been verified."
 
     # Record claim evolution mutation history
     try:
@@ -893,7 +942,10 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
     except Exception as exc:
         pass
 
-    staleness_warning = model_analysis.get("staleness_warning", False)
+    staleness_warning = bool(
+        model_analysis.get("staleness_warning", False)
+        or evidence_data.get("api_decision", {}).get("time_sensitive", False)
+    )
 
     result = {
         "classification":        verdict,

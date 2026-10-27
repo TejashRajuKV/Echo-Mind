@@ -260,6 +260,15 @@ function initializeDemoFunctionality() {
 
     const getClassificationTheme = (classification) => {
         const c = (classification || '').toLowerCase();
+        if (c.includes('unverified') || c.includes('not verified')) {
+            return {
+                heroClass: 'verdict-unverified',
+                chipClass: 'chip-consensus-unverified',
+                icon: '<i class="fas fa-circle-question"></i>',
+                title: 'Not verified',
+                tag: 'NO VERDICT — INSUFFICIENT EVIDENCE'
+            };
+        }
         if (c.includes('trustworthy') || c.includes('true')) {
             return {
                 heroClass: 'verdict-trustworthy',
@@ -346,8 +355,8 @@ function initializeDemoFunctionality() {
                         </div>
                     </div>
                     <div class="score-radial">
-                        <div class="score-number">${data.score || 50}</div>
-                        <div class="score-label">Credibility Score</div>
+                        <div class="score-number">${sources.length ? (data.score ?? '—') : '—'}</div>
+                        <div class="score-label">${sources.length ? 'Credibility Score' : 'No evidence score'}</div>
                     </div>
                 </div>
 
@@ -405,7 +414,7 @@ function initializeDemoFunctionality() {
                 </div>
 
                 ${apiRouteRows ? `
-                    <details class="api-routing-note">
+                    <details class="api-routing-note" ${sources.length === 0 ? 'open' : ''}>
                         <summary><i class="fas fa-route" aria-hidden="true"></i> Why these sources?</summary>
                         <div class="api-routing-meta">${escapeHTML(apiDecision.topic || 'general')} · ${escapeHTML(apiDecision.language || 'English')}${apiDecision.time_sensitive ? ' · time-sensitive' : ''}</div>
                         <ul>${apiRouteRows}</ul>
@@ -575,7 +584,7 @@ function initializeDemoFunctionality() {
                     ` : `
                         <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569; font-size: 0.9rem;">
                             <i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 0.4rem;"></i>
-                            ${data.evidence || 'No direct fact-check database match found. Cross-referenced against authoritative domain guidelines and reasoning engine.'}
+                            ${data.evidence || 'No sources were retrieved. This claim has not been verified.'}
                         </div>
                     `}
                 </div>

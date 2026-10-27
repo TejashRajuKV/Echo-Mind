@@ -315,8 +315,10 @@ def verify_claim_multisource(claim: str, evidence_data: Dict[str, Any]) -> Dict[
     3. Analyze conflict & consensus
     4. Compute multi-factor credibility score
     """
-    subclaims = decompose_claim(claim)
-    sources = evidence_data.get("sources", [])
+    subclaims = decompose_claim(str(claim or ""))
+    evidence_data = evidence_data if isinstance(evidence_data, dict) else {}
+    raw_sources = evidence_data.get("sources", [])
+    sources = [source for source in raw_sources if isinstance(source, dict)] if isinstance(raw_sources, list) else []
 
     # Sub-claim analysis
     analyzed_subclaims = []

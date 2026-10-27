@@ -7,8 +7,10 @@ def reconcile_verdict(model_verdict: str, consensus: Dict[str, Any], evidence_so
     sources = evidence_sources if isinstance(evidence_sources, list) else []
     publishers = {publisher_identity(s) for s in sources if isinstance(s, dict)}
     direction = str(consensus.get('consensus_direction', 'unknown')).casefold()
-    if not sources or len(publishers) < 2:
-        return 'Suspicious', 'Insufficient independent evidence: at least two distinct publishers are required for a decisive verdict.'
+    if not sources:
+        return 'Unverified', 'No sources were retrieved, so this claim has not been checked.'
+    if len(publishers) < 2:
+        return 'Unverified', 'Fewer than two independent publishers were found; there is not enough evidence for a verdict.'
     if consensus.get('conflict_detected') or direction == 'disputed':
         return 'Suspicious', 'Conflicting evidence was detected; the result is contested and should not be presented as settled.'
     if direction == 'supported':

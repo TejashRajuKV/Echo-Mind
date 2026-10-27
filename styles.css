@@ -951,6 +951,11 @@ h1, h2, h3, h4, h5, h6 {
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, #ffffff 100%);
 }
 
+.verdict-hero.verdict-unverified {
+    border-color: #94a3b8;
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.09) 0%, #ffffff 100%);
+}
+
 .verdict-badge-group {
     display: flex;
     align-items: center;
@@ -970,6 +975,7 @@ h1, h2, h3, h4, h5, h6 {
 .verdict-trustworthy .verdict-icon { background: #d1fae5; color: #059669; }
 .verdict-false .verdict-icon { background: #fee2e2; color: #dc2626; }
 .verdict-suspicious .verdict-icon { background: #fef3c7; color: #d97706; }
+.verdict-unverified .verdict-icon { background: #e2e8f0; color: #475569; }
 
 .verdict-label {
     font-size: 0.85rem;
@@ -989,6 +995,7 @@ h1, h2, h3, h4, h5, h6 {
 .verdict-trustworthy .verdict-title { color: #047857; }
 .verdict-false .verdict-title { color: #b91c1c; }
 .verdict-suspicious .verdict-title { color: #b45309; }
+.verdict-unverified .verdict-title { color: #334155; }
 
 .score-radial {
     display: flex;
