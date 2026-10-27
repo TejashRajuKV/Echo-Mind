@@ -257,6 +257,15 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
         except Exception as e:
             print(f"[WARN] FreeNewsAPI query error: {e}")
 
+    # A broad name match is not enough for sensitive claims such as death
+    # rumors. Let the backup provider run when all FreeNews results are noise.
+    if results:
+        try:
+            from api_decision_engine import is_relevant_news_article
+            results = [item for item in results if is_relevant_news_article(query, item)]
+        except Exception as exc:
+            print(f"[WARN] Could not filter FreeNewsAPI results: {type(exc).__name__}")
+
     # 2. Fallback / Complement with NewsAPI if available
     if not results and news_api_key:
         try:

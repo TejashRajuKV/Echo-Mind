@@ -30,6 +30,29 @@ DEATH_CLAIM_TERMS = (
     " is dead", " are dead", " died", " death", " has died", " passed away",
     " has passed away", " was killed", " assassinated", " deceased",
 )
+DEATH_SEARCH_NOISE = {
+    "is", "are", "was", "were", "has", "have", "had", "dead", "died", "death",
+    "passed", "away", "killed", "assassinated", "deceased", "rumor", "rumour",
+    "hoax", "latest", "breaking", "claim", "claims", "reported", "reports",
+}
+
+
+def is_death_claim(claim: str) -> bool:
+    normalized = " " + " ".join(str(claim or "").casefold().split()) + " "
+    return any(term in normalized for term in DEATH_CLAIM_TERMS)
+
+
+def death_claim_search_query(claim: str) -> str | None:
+    """Search current reporting about the named person and the death claim."""
+    if not is_death_claim(claim):
+        return None
+    entity_words = [
+        word for word in re.findall(r"[a-z0-9]+", str(claim).casefold())
+        if len(word) > 1 and word not in DEATH_SEARCH_NOISE and word not in NEWS_STOP_WORDS
+    ]
+    if not entity_words:
+        return str(claim).strip()
+    return " ".join(entity_words[:6] + ["death", "rumor"])
 
 OFFICEHOLDER_OFFICES = {
     "chief_minister": ("chief minister", "chief-minister", "cm"),
@@ -89,6 +112,27 @@ NEWS_STOP_WORDS = {
 
 def is_relevant_news_article(claim: str, article: dict) -> bool:
     """Reject keyword-search noise before live articles enter the evidence trail."""
+    if is_death_claim(claim):
+        article_text = " ".join(
+            str(article.get(field) or "")
+            for field in ("title", "excerpt", "description", "snippet")
+        ).casefold()
+        article_terms = set(re.findall(r"[a-z0-9]+", article_text))
+        death_signals = {
+            "dead", "death", "died", "dies", "dying", "deceased", "passed", "killed",
+            "assassinated", "alive", "hoax", "rumor", "rumour", "untrue", "fake",
+        }
+        if not article_terms.intersection(death_signals):
+            return False
+        entity_terms = {
+            word for word in re.findall(r"[a-z0-9]+", str(claim).casefold())
+            if len(word) > 1 and word not in DEATH_SEARCH_NOISE and word not in NEWS_STOP_WORDS
+        }
+        if not entity_terms:
+            return True
+        overlap = len(entity_terms & article_terms)
+        return overlap >= min(2, len(entity_terms))
+
     if officeholder_search_query(claim):
         return is_relevant_officeholder_article(claim, article)
 
@@ -141,7 +185,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
         topic in {"sports", "weather"}
         or officeholder_search_query(claim) is not None
         or any(term in normalized for term in FRESHNESS_TERMS)
-        or any(term in normalized for term in DEATH_CLAIM_TERMS)
+        or is_death_claim(normalized)
         or bool(re.search(r"\b20\d{2}\b", normalized))
     )
     use_realtime_cache = topic in {"sports", "weather"} or "breaking news" in normalized or "live score" in normalized
@@ -188,7 +232,7 @@ def build_api_decision(claim: str) -> Dict[str, Any]:
             },
         },
         "reasoning": "Gemini explains retrieved evidence when configured; otherwise the deterministic evidence-only fallback is used.",
-        "live_news_query": officeholder_search_query(claim) or claim,
+        "live_news_query": death_claim_search_query(claim) or officeholder_search_query(claim) or claim,
     }
 
 
