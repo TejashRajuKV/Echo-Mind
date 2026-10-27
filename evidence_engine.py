@@ -471,6 +471,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
 
     # The local archive is always queried as it has no external API cost.
     db_sources = query_local_factcheck_db(claim, max_results=4)
+    db_sources = [source for source in db_sources if is_relevant_news_article(claim, source)]
     raw_sources.extend(db_sources)
 
     direct_sources = db_sources
