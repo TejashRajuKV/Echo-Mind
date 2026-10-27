@@ -298,9 +298,19 @@ function initializeDemoFunctionality() {
 
     // Full Evidence Intelligence Engine HTML Renderer
     function displayAnalysisResult(data) {
-        const theme = getClassificationTheme(data.classification);
-        const consensus = data.consensus || {};
         const sources = data.evidence_sources || [];
+        const hasEvidence = Array.isArray(sources) && sources.length > 0;
+        const theme = getClassificationTheme(hasEvidence ? data.classification : 'Unverified');
+        const consensus = hasEvidence ? (data.consensus || {}) : {
+            ...(data.consensus || {}),
+            status: 'Not verified — no sources found',
+            consensus_direction: 'unknown',
+            supporting_sources_count: 0,
+            refuting_sources_count: 0,
+            neutral_sources_count: 0,
+            independent_publisher_count: 0,
+            detail: 'No sources were retrieved, so this claim has not been checked. A zero-source result does not mean the claim is true or false.'
+        };
         const subclaims = data.subclaims || [];
         const breakdown = data.credibility_breakdown || {};
         const gamification = data.gamification || { points: 0, badges: [] };
@@ -638,10 +648,10 @@ function initializeDemoFunctionality() {
                         Evidence and explanation
                     </h4>
                     <span class="reasoning-mode ${data.explanation_mode === 'gemini_grounded' ? 'reasoning-mode-ai' : 'reasoning-mode-fallback'}">
-                        ${data.explanation_mode === 'gemini_grounded' ? 'Gemini · grounded in retrieved sources' : (data.explanation_mode === 'evidence_reconciled' ? 'Evidence policy · verdict reconciled' : 'Evidence-only fallback · no Gemini explanation')}
+                        ${!hasEvidence ? 'No sources retrieved · no verdict' : (data.explanation_mode === 'gemini_grounded' ? 'Gemini · grounded in retrieved sources' : (data.explanation_mode === 'evidence_reconciled' ? 'Evidence policy · verdict reconciled' : 'Evidence-only fallback · no Gemini explanation'))}
                     </span>
                     <div class="reasoning-copy" style="color: #334155; line-height: 1.7; font-size: 0.95rem;">
-                        ${renderExplanationMarkdown(data.explanation || 'No explanation was returned.')}
+                        ${renderExplanationMarkdown(hasEvidence ? (data.explanation || 'No explanation was returned.') : 'No sources were retrieved, so this claim has not been verified. This result does not mean the claim is true or false. Check “Why these sources?” to see whether live news was searched or a news-provider key is missing.')}
                     </div>
 
                     ${data.tips && data.tips.length > 0 ? `
