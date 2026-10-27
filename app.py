@@ -30,7 +30,11 @@ _raw_origins = os.environ.get(
     "ALLOWED_ORIGINS",
     "http://localhost:8080,http://127.0.0.1:8080,https://tejashrajukv.github.io",
 )
-ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+_configured_origins = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
+# Keep the published GitHub Pages frontend reachable even if a hosted
+# ALLOWED_ORIGINS value is set only for local development or another client.
+_deployed_frontend_origin = "https://tejashrajukv.github.io"
+ALLOWED_ORIGINS = list(dict.fromkeys([*_configured_origins, _deployed_frontend_origin]))
 
 MAX_REQUESTS_PER_HOUR = max(1, int(os.environ.get("MAX_REQUESTS_PER_HOUR", 100)))
 MAX_CLAIM_LENGTH      = max(1, int(os.environ.get("MAX_CLAIM_LENGTH", 2000)))
