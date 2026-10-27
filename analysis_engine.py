@@ -695,7 +695,11 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         evidence_data = gather_evidence_pipeline(text)
     except Exception as exc:
         print(f"[WARN] Evidence pipeline error: {exc}")
-        retrieval_error = type(exc).__name__
+        retrieval_error = (
+            f"missing Python module '{getattr(exc, 'name', None) or 'unknown'}'"
+            if isinstance(exc, ModuleNotFoundError)
+            else type(exc).__name__
+        )
         try:
             from api_decision_engine import build_api_decision
             api_decision = build_api_decision(text)
@@ -703,7 +707,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             if news_route.get("configured"):
                 news_route["used"] = False
                 news_route["reason"] = (
-                    f"The provider key is configured, but the evidence pipeline stopped ({type(exc).__name__}) "
+                    f"The provider key is configured, but the evidence pipeline stopped ({retrieval_error}) "
                     "before it recorded a live-search result. Check the Render deployment logs."
                 )
         except Exception:
@@ -766,7 +770,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
             "detail": (
                 "No sources were retrieved, so Echo Mind has not checked this claim. "
                 "A zero-source result is not evidence that the claim is true or false."
-                + (f" Evidence retrieval stopped with a {retrieval_error}; check the backend deployment logs." if retrieval_error else "")
+                + (f" Evidence retrieval stopped: {retrieval_error}; check the backend deployment logs." if retrieval_error else "")
             ),
         }
 
@@ -814,7 +818,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         )
         if retrieval_error:
             retrieval_note = (
-                f"Evidence retrieval stopped with a {retrieval_error}; check the Render deployment logs. "
+                f"Evidence retrieval stopped: {retrieval_error}; check the Render deployment logs. "
                 + ("The backend detected a news-provider key." if live_news_route.get("configured") else "The backend did not detect a configured news-provider key.")
             )
         elif not live_news_route.get("configured"):
