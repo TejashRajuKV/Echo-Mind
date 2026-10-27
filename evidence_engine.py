@@ -455,7 +455,7 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     5. Computes source distribution statistics
     """
     from api_decision_engine import build_api_decision, finalize_api_decision, is_relevant_news_article
-    from publisher_identity import publisher_identity
+    from verification_engine import publisher_identity
 
     raw_sources: List[Dict[str, Any]] = []
     decision = build_api_decision(claim)

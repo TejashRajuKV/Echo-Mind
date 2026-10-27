@@ -9,6 +9,44 @@ and computes a transparent, explainable multi-factor credibility score.
 import re
 import math
 from typing import List, Dict, Any, Tuple
+from urllib.parse import urlparse
+
+
+MULTI_LABEL_SUFFIXES = {
+    "ac.in", "co.in", "com.au", "com.br", "com.cn", "com.sg", "co.nz",
+    "co.uk", "gov.in", "net.au", "org.in", "org.uk",
+}
+
+PUBLISHER_ALIASES = {
+    "the times of india": "times-group",
+    "times of india": "times-group",
+    "the economic times": "times-group",
+    "economic times": "times-group",
+}
+
+
+def publisher_identity(source: dict) -> str:
+    """Return a stable publisher key for source independence calculations."""
+    cluster = str(source.get("cluster_id") or "").strip().casefold()
+    if cluster and cluster != "standalone" and (
+        source.get("is_syndicated") or source.get("is_echo_chamber") or cluster.startswith("wire:")
+    ):
+        return f"cluster:{cluster}"
+
+    domain = str(source.get("domain") or "").strip().casefold().removeprefix("www.")
+    if not domain:
+        url = str(source.get("url") or source.get("link") or "")
+        domain = (urlparse(url).hostname or "").casefold().removeprefix("www.")
+    if domain.endswith(".indiatimes.com") or domain == "indiatimes.com":
+        return "times-group"
+    if domain:
+        labels = domain.split(".")
+        if len(labels) >= 3 and ".".join(labels[-2:]) in MULTI_LABEL_SUFFIXES:
+            return ".".join(labels[-3:])
+        return ".".join(labels[-2:]) if len(labels) >= 2 else domain
+
+    publisher = re.sub(r"[^a-z0-9]+", " ", str(source.get("publisher") or "").casefold()).strip()
+    return PUBLISHER_ALIASES.get(publisher, publisher or "unknown")
 
 
 def decompose_claim(claim: str) -> List[Dict[str, Any]]:
@@ -95,8 +133,6 @@ def evaluate_conflict_and_consensus(sources: List[Dict[str, Any]]) -> Dict[str, 
     Analyzes multi-source agreement vs contradiction across independent sources.
     Calculates weighted consensus and detects controversy/conflict.
     """
-    from publisher_identity import publisher_identity
-
     if not sources:
         return {
             "status": "Unverified / Insufficient Evidence",

@@ -1,5 +1,5 @@
 from typing import Any, Dict, Tuple
-from publisher_identity import publisher_identity
+from verification_engine import publisher_identity
 
 
 def reconcile_verdict(model_verdict: str, consensus: Dict[str, Any], evidence_sources: list) -> Tuple[str, str]:
