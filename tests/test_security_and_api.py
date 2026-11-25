@@ -14,8 +14,8 @@ def client(tmp_path, monkeypatch):
 
 def test_verdict_policy_abstains_without_two_publishers():
     verdict, reason = reconcile_verdict('Trustworthy', {'consensus_direction': 'supported'}, [{'publisher': 'One Publisher'}])
-    assert verdict == 'Suspicious'
-    assert 'Insufficient independent evidence' in reason
+    assert verdict == 'Unverified'
+    assert 'independent publishers' in reason
 
 def test_verdict_policy_abstains_on_conflict():
     verdict, _ = reconcile_verdict('Trustworthy', {'consensus_direction': 'disputed', 'conflict_detected': True}, [{'publisher': 'A'}, {'publisher': 'B'}])

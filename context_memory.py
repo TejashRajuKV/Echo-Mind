@@ -20,7 +20,7 @@ DEFAULT_TTL_SECONDS = 6 * 60 * 60
 LIVE_TTL_SECONDS = 15 * 60
 # Bump when evidence routing/relevance rules change so old mixed-provider
 # analyses are not replayed as if they came from the current pipeline.
-CACHE_RESULT_SCHEMA_VERSION = 3
+CACHE_RESULT_SCHEMA_VERSION = 4
 MAX_CLAIM_CHARS = 2000
 STOP_WORDS = {
     "the", "and", "for", "with", "from", "that", "this", "was", "were", "are",

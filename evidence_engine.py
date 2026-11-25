@@ -203,11 +203,19 @@ def detect_evidence_stance(claim: str, title: str, text: str, rating: str = "") 
 # ---------------------------------------------------------------------------
 # Source Connector 1: FreeNewsAPI & NewsAPI Connector
 # ---------------------------------------------------------------------------
-def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+def query_live_news_sources(query: str, max_results: int = 5, diagnostics: Optional[list] = None) -> List[Dict[str, Any]]:
     """
     Query FreeNewsAPI.io or NewsAPI.org for primary news reporting.
     """
     results = []
+    diagnostics = diagnostics if diagnostics is not None else []
+
+    def record_response(provider, response):
+        status = response.status_code
+        state = ('ok' if status == 200 else 'authentication_error' if status in (401, 403)
+                 else 'rate_limited' if status == 429 else 'provider_error')
+        diagnostics.append({'provider': provider, 'status': state, 'http_status': status})
+
     free_news_key = os.environ.get("FREE_NEWS_API_KEY") or os.environ.get("FREENEWSAPI_KEY")
     news_api_key = os.environ.get("NEWSAPI_KEY") or os.environ.get("NEWS_API_KEY")
 
@@ -217,7 +225,8 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
     if free_news_key:
         try:
             url = f"https://www.freenewsapi.io/api/v1/search?query={requests.utils.quote(clean_query)}&token={free_news_key}"
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=10)
+            record_response("FreeNewsAPI", resp)
             if resp.status_code == 200 and "json" in resp.headers.get("content-type", "").lower():
                 try:
                     data = resp.json()
@@ -255,7 +264,8 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
                         "wire_agency": synd["wire_agency"],
                     })
         except Exception as e:
-            print(f"[WARN] FreeNewsAPI query error: {e}")
+            diagnostics.append({'provider': 'FreeNewsAPI', 'status': 'timeout' if isinstance(e, requests.Timeout) else 'request_error'})
+            print(f"[WARN] FreeNewsAPI query error: {type(e).__name__}")
 
     # A broad name match is not enough for sensitive claims such as death
     # rumors. Let the backup provider run when all FreeNews results are noise.
@@ -277,7 +287,8 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
                 "sortBy": "relevancy",
                 "language": "en",
             }
-            resp = requests.get(url, params=params, timeout=5)
+            resp = requests.get(url, params=params, timeout=10)
+            record_response("NewsAPI", resp)
             if resp.status_code == 200 and "json" in resp.headers.get("content-type", "").lower():
                 try:
                     data = resp.json()
@@ -311,7 +322,8 @@ def query_live_news_sources(query: str, max_results: int = 5) -> List[Dict[str, 
                         "wire_agency": synd["wire_agency"],
                     })
         except Exception as e:
-            print(f"[WARN] NewsAPI query error: {e}")
+            diagnostics.append({'provider': 'NewsAPI', 'status': 'timeout' if isinstance(e, requests.Timeout) else 'request_error'})
+            print(f"[WARN] NewsAPI query error: {type(e).__name__}")
 
     return results
 
@@ -496,7 +508,8 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
     news_route = decision["routes"]["live_news"]
     news_checked = news_route["configured"] and needs_live_news
     news_query = decision.get("live_news_query") or claim
-    news_sources = query_live_news_sources(news_query, max_results=8) if news_checked else []
+    provider_status = []
+    news_sources = query_live_news_sources(news_query, max_results=8, diagnostics=provider_status) if news_checked else []
     if news_sources:
         news_sources = [source for source in news_sources if is_relevant_news_article(claim, source)][:4]
     raw_sources.extend(news_sources)
@@ -509,6 +522,12 @@ def gather_evidence_pipeline(claim: str, max_total: int = 10) -> Dict[str, Any]:
         local_results=len(db_sources),
         direct_source_count=direct_source_count,
     )
+
+    decision['routes']['live_news']['provider_status'] = provider_status
+    failures = [item for item in provider_status if item['status'] != 'ok']
+    if news_checked and not news_sources and failures:
+        statuses = ', '.join(f"{item['provider']}: {item['status']}" for item in failures)
+        decision['routes']['live_news']['reason'] = f"Live search could not retrieve relevant articles. Provider status: {statuses}."
 
     # --- Deduplication and Cluster Analysis ---
     seen_urls = set()

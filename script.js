@@ -232,7 +232,7 @@ function initializeDemoFunctionality() {
             <div class="claim-library-item">
                 <button type="button" class="library-load-claim" data-load-claim="${escapeHTML(entry.claim)}" title="Load this claim into the checker">
                     <span class="library-claim-text">${escapeHTML(entry.claim)}</span>
-                    <span class="library-claim-meta">${escapeHTML(entry.verdict || 'Checked')}${entry.score !== null && entry.score !== undefined ? ` · ${escapeHTML(entry.score)}/100` : ''}</span>
+                    <span class="library-claim-meta">${escapeHTML(entry.verdict || 'Checked')}${entry.verdict !== 'Unverified' && entry.score !== null && entry.score !== undefined ? ` · ${escapeHTML(entry.score)}/100` : ''}</span>
                 </button>
                 <button type="button" class="library-save-claim ${entry.saved ? 'is-saved' : ''}" data-save-claim="${escapeHTML(entry.claim)}" aria-label="${entry.saved ? 'Remove saved claim' : 'Save claim'}" title="${entry.saved ? 'Remove saved claim' : 'Save claim'}">
                     <i class="${entry.saved ? 'fas' : 'far'} fa-bookmark" aria-hidden="true"></i>
@@ -600,7 +600,7 @@ function initializeDemoFunctionality() {
                 </div>
 
                 <!-- 5. Transparent Credibility Formula Breakdown -->
-                ${breakdown.source_convergence_score !== undefined ? `
+                ${hasEvidence && breakdown.source_convergence_score !== undefined ? `
                     <div class="credibility-formula-card">
                         <div class="panel-title">
                             <i class="fas fa-calculator" style="color: #8b5cf6;"></i>
@@ -610,28 +610,28 @@ function initializeDemoFunctionality() {
                             <div class="formula-item">
                                 <div class="formula-label">
                                     <span>Source Convergence</span>
-                                    <strong>${breakdown.source_convergence_score || 50}%</strong>
+                                    <strong>${breakdown.source_convergence_score ?? 50}%</strong>
                                 </div>
                                 <div class="formula-bar">
-                                    <div class="formula-bar-fill" style="width: ${breakdown.source_convergence_score || 50}%"></div>
+                                    <div class="formula-bar-fill" style="width: ${breakdown.source_convergence_score ?? 50}%"></div>
                                 </div>
                             </div>
                             <div class="formula-item">
                                 <div class="formula-label">
                                     <span>Evidence Authority</span>
-                                    <strong>${breakdown.evidence_authority_score || 50}%</strong>
+                                    <strong>${breakdown.evidence_authority_score ?? 50}%</strong>
                                 </div>
                                 <div class="formula-bar">
-                                    <div class="formula-bar-fill" style="width: ${breakdown.evidence_authority_score || 50}%"></div>
+                                    <div class="formula-bar-fill" style="width: ${breakdown.evidence_authority_score ?? 50}%"></div>
                                 </div>
                             </div>
                             <div class="formula-item">
                                 <div class="formula-label">
                                     <span>Publisher Independence</span>
-                                    <strong>${breakdown.publisher_independence_score || 50}%</strong>
+                                    <strong>${breakdown.publisher_independence_score ?? 50}%</strong>
                                 </div>
                                 <div class="formula-bar">
-                                    <div class="formula-bar-fill" style="width: ${breakdown.publisher_independence_score || 50}%"></div>
+                                    <div class="formula-bar-fill" style="width: ${breakdown.publisher_independence_score ?? 50}%"></div>
                                 </div>
                             </div>
                         </div>

@@ -127,6 +127,16 @@ Install optional test tools with python -m pip install pytest schedule and npm i
 
 The browser suite uses deterministic mocked API responses. It does not verify live Gemini, news-provider credentials, Render persistence, or deployment configuration. API-backed behavior should be checked separately with the provider keys and deployed service.
 
+## Feature audit — November 25, 2026
+
+The local regression run passed 70 Python tests and 9 Chromium browser tests. Browser checks cover analysis rendering and sanitization, timeline, subscriptions, shareable reports, document scanning, metrics, correction submission, empty-evidence results, and CSV export. These browser checks use mocked API responses; they do not establish live provider availability.
+
+Empty-evidence results display no evidence score in the main panel, formula, or report. Unverified history entries also hide numeric scores. Older cached results are invalidated after this change.
+
+The investigation workspace remains a locked preview. Its controls are deliberately unavailable while development continues. OCR requires the Tesseract executable in addition to the Python packages. Scheduled monitoring requires a separate monitor worker, and email delivery requires SMTP configuration. Neither a subscription confirmation nor a passing UI test confirms that a worker is running.
+
+The local Gemini configuration answered a minimal live request successfully. Render responded to history, metrics, and analysis during the audit; its configured news route returned zero relevant articles for the comparison claim. The initial health request timed out. These observations do not establish uninterrupted availability or correctness for every claim.
+
 ## Repository layout
 
 - index.html, styles.css, script.js: static frontend

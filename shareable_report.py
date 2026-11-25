@@ -51,6 +51,7 @@ def generate_shareable_report_html(analysis_result: Dict[str, Any], claim_text: 
     consensus = analysis_result.get("consensus", {})
     if not isinstance(consensus, dict):
         consensus = {}
+    score_display = "Unavailable — insufficient evidence" if not sources or verdict == "Unverified" else f"{score}/100"
     safe_verdict = _text(verdict)
     color, bg = {
         "Trustworthy": ("#065f46", "#ecfdf5"),
@@ -95,7 +96,7 @@ footer{margin-top:2rem;border-top:1px solid #e2e8f0;padding-top:1rem;color:#6474
 </style></head><body><main>
 <h1>Echo Mind Evidence Report</h1><p>Report ID: <strong>""" + _text(report_id) + """</strong> · Generated """ + _text(datetime.utcnow().strftime("%B %d, %Y")) + """</p>
 <h2>Claim reviewed</h2><div class="claim">""" + _text(claim_text) + """</div>
-<p class="verdict">Assessment: """ + safe_verdict + """ · Evidence score: """ + _text(score) + """/100</p>
+<p class="verdict">Assessment: """ + safe_verdict + """ · Evidence score: """ + _text(score_display) + """</p>
 <h2>Reasoning and context</h2><p>""" + explanation + """</p>
 <p>Evidence status: """ + direction + """</p>
 <h2>Evidence trail</h2><table><thead><tr><th>Publisher</th><th>Stance</th><th>Authority</th><th>Date</th><th>Reference</th></tr></thead><tbody>""" + "".join(rows) + """</tbody></table>

@@ -6,7 +6,7 @@ const analysis = {
   score: 45,
   explanation: 'Mocked analysis result for deterministic browser tests.',
   evidence: 'Insufficient independent evidence.',
-  evidence_sources: [],
+  evidence_sources: [{publisher: 'Example', title: 'Test evidence', url: 'https://example.org/evidence', stance: 'neutral', authority_score: 80}],
   consensus: {
     status: 'Unverified / Insufficient Independent Evidence',
     detail: 'Test fixture contains no live evidence.',
@@ -145,4 +145,24 @@ test('correction action submits feedback and displays acknowledgement', async ({
   await page.locator('#corrRationaleInput').fill('Mocked primary evidence rationale.');
   await page.locator('#btnSendCorrection').click();
   await expect(page.locator('#corrStatusMsg')).toContainText('Correction received into audit queue!');
+});
+
+
+test('empty evidence shows no verdict or formula score', async ({ page }) => {
+  await page.route(apiOrigin + '/analyze', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ ...analysis, evidence_sources: [] }),
+  }));
+  await page.locator('#checkClaim').click();
+  await expect(page.locator('.verdict-title')).toHaveText('Not verified');
+  await expect(page.locator('.score-number')).toHaveText('—');
+  await expect(page.locator('.credibility-formula-card')).toHaveCount(0);
+  await expect(page.locator('#btnExportEvidence')).toBeDisabled();
+});
+
+test('export downloads cited sources', async ({ page }) => {
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#btnExportEvidence').click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.csv$/);
 });

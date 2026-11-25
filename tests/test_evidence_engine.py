@@ -21,7 +21,7 @@ def test_retrieval_deduplicates_duplicate_urls_and_syndication(monkeypatch):
     monkeypatch.setattr('evidence_engine.query_local_factcheck_db', lambda *args, **kwargs: [first, duplicate_url])
     monkeypatch.setattr('evidence_engine.query_realtime_updater_context', lambda *args, **kwargs: [])
     monkeypatch.setattr('evidence_engine.query_live_news_sources', lambda *args, **kwargs: [lower_authority_mirror])
-    result = gather_evidence_pipeline('example claim')
+    result = gather_evidence_pipeline('matching shared headline')
     assert result['total_sources_found'] == 3
     assert result['unique_sources_retained'] == 1
     assert result['sources'][0]['publisher'] == 'Publisher A'
@@ -71,3 +71,27 @@ def test_fact_check_tools_are_not_routed():
     decision = build_api_decision('A claim')
     assert 'google_fact_check' not in decision['routes']
     assert 'live_news' in decision['routes']
+
+
+def test_news_provider_failure_is_visible_and_backup_is_used(monkeypatch):
+    from evidence_engine import query_live_news_sources
+    monkeypatch.setenv('FREE_NEWS_API_KEY', 'mock-free-key')
+    monkeypatch.setenv('NEWSAPI_KEY', 'mock-news-key')
+    class Response:
+        headers = {'content-type': 'application/json'}
+        def __init__(self, status):
+            self.status_code = status
+        def json(self):
+            return {'articles': [{'title': 'Matching shared headline',
+                'description': 'Matching shared headline details',
+                'url': 'https://example.org/story', 'source': {'name': 'Example'}}]}
+    responses = iter([Response(429), Response(200)])
+    monkeypatch.setattr('evidence_engine.requests.get', lambda *a, **kw: next(responses))
+    diagnostics = []
+    articles = query_live_news_sources('matching shared headline', diagnostics=diagnostics)
+    assert len(articles) == 1
+    assert diagnostics == [
+        {'provider': 'FreeNewsAPI', 'status': 'rate_limited', 'http_status': 429},
+        {'provider': 'NewsAPI', 'status': 'ok', 'http_status': 200},
+    ]
+    assert 'mock-free-key' not in str(diagnostics)

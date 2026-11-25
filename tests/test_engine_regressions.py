@@ -118,3 +118,12 @@ class DatasetIntegrityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_empty_evidence_report_does_not_publish_default_numeric_score():
+    report = generate_shareable_report_html({
+        'classification': 'Unverified', 'score': 50,
+        'evidence_sources': [], 'explanation': 'No sources retrieved.',
+    }, 'Example claim')
+    assert 'Evidence score: Unavailable' in report
+    assert 'Evidence score: 50/100' not in report

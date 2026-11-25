@@ -824,7 +824,7 @@ def analyze_claim(text, current_points=0, current_badges=None, save_to_database=
         elif not live_news_route.get("configured"):
             retrieval_note = "No live-news API key is configured; Gemini does not search for news."
         elif live_news_route.get("used"):
-            retrieval_note = "Live news was queried but returned no matching articles."
+            retrieval_note = live_news_route.get("reason") or "Live news was queried but returned no matching articles."
         else:
             retrieval_note = "The live-news route was not queried for this claim."
         explanation = (

@@ -24,7 +24,7 @@ class VerdictReconciliationTests(unittest.TestCase):
         verdict, _ = reconcile_verdict("Trustworthy", {"consensus_direction": "supported"}, [
             {"publisher": "one", "domain": "one.example"}
         ])
-        self.assertEqual(verdict, "Suspicious")
+        self.assertEqual(verdict, "Unverified")
 
     def test_conflict_forces_contested_result(self):
         verdict, _ = reconcile_verdict("Trustworthy", {
